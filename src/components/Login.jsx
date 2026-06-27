@@ -19,6 +19,19 @@ function Login({ onLogin, loading }) {
     onLogin(formData.email, formData.password);
   };
 
+  const obtenerUbicacion = () => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ lat: null, lng: null });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve({ lat: null, lng: null })
+      );
+    });
+  };
+
   const handleRegistro = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmar) {
@@ -41,6 +54,12 @@ function Login({ onLogin, loading }) {
         body.especialidad = formData.especialidad;
         body.ciudad = formData.ciudad;
         body.telefono = formData.telefono;
+        // Obtener ubicación del técnico
+        const { lat, lng } = await obtenerUbicacion();
+        if (lat && lng) {
+          body.lat = lat;
+          body.lng = lng;
+        }
       }
       const res = await fetch('https://forjanova-api-backend.onrender.com/api/auth/registro', {
         method: 'POST',
@@ -84,7 +103,6 @@ function Login({ onLogin, loading }) {
           </button>
         </div>
 
-        {/* LOGIN */}
         {view === 'login' && (
           <form onSubmit={handleLogin} style={styles.form}>
             <label style={styles.label}>Correo electrónico</label>
@@ -103,7 +121,6 @@ function Login({ onLogin, loading }) {
           </form>
         )}
 
-        {/* REGISTRO */}
         {view === 'registro' && (
           <form onSubmit={handleRegistro} style={styles.form}>
             <label style={styles.label}>Nombre completo</label>
@@ -118,30 +135,20 @@ function Login({ onLogin, loading }) {
             <label style={styles.label}>Confirmar contraseña</label>
             <input name="confirmar" type="password" placeholder="Repite tu contraseña" value={formData.confirmar} onChange={handleChange} required style={styles.input} />
 
-            {/* SELECTOR DE ROL */}
             <label style={styles.label}>¿Cómo quieres usar Forjanova?</label>
             <div style={styles.rolWrap}>
-              <button
-                type="button"
-                style={formData.rol === 'cliente' ? styles.rolBtnActive : styles.rolBtn}
-                onClick={() => setFormData({ ...formData, rol: 'cliente' })}
-              >
+              <button type="button" style={formData.rol === 'cliente' ? styles.rolBtnActive : styles.rolBtn} onClick={() => setFormData({ ...formData, rol: 'cliente' })}>
                 <span style={styles.rolIcon}>👤</span>
                 <span style={styles.rolLabel}>Cliente</span>
                 <span style={styles.rolSub}>Busco servicios</span>
               </button>
-              <button
-                type="button"
-                style={formData.rol === 'tecnico' ? styles.rolBtnActive : styles.rolBtn}
-                onClick={() => setFormData({ ...formData, rol: 'tecnico' })}
-              >
+              <button type="button" style={formData.rol === 'tecnico' ? styles.rolBtnActive : styles.rolBtn} onClick={() => setFormData({ ...formData, rol: 'tecnico' })}>
                 <span style={styles.rolIcon}>🔧</span>
                 <span style={styles.rolLabel}>Técnico</span>
                 <span style={styles.rolSub}>Ofrezco servicios</span>
               </button>
             </div>
 
-            {/* CAMPOS EXTRA SI ES TÉCNICO */}
             {formData.rol === 'tecnico' && (
               <>
                 <label style={styles.label}>Especialidad *</label>
@@ -164,6 +171,10 @@ function Login({ onLogin, loading }) {
 
                 <label style={styles.label}>Teléfono</label>
                 <input name="telefono" type="text" placeholder="Ej: 999888777" value={formData.telefono} onChange={handleChange} style={styles.input} />
+
+                <div style={styles.ubicacionNote}>
+                  📍 Al crear tu cuenta, solicitaremos tu ubicación para que los clientes puedan encontrarte
+                </div>
               </>
             )}
 
@@ -174,7 +185,6 @@ function Login({ onLogin, loading }) {
           </form>
         )}
 
-        {/* RECUPERAR */}
         {view === 'recuperar' && (
           <form onSubmit={handleRecuperar} style={styles.form}>
             <p style={styles.recuperarDesc}>
@@ -256,6 +266,10 @@ const styles = {
   mensaje: { color: '#ff4444', fontSize: '13px', marginTop: '8px', textAlign: 'center' },
   mensajeOk: { color: '#4caf50', fontSize: '13px', marginTop: '8px', textAlign: 'center' },
   recuperarDesc: { color: '#888', fontSize: '14px', lineHeight: '1.5', marginBottom: '8px' },
+  ubicacionNote: {
+    background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px',
+    padding: '10px 12px', fontSize: '12px', color: '#888', marginTop: '8px',
+  },
 };
 
 export default Login;
