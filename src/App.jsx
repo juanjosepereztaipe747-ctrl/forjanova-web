@@ -48,7 +48,7 @@ function App() {
         presupuesto_max: parseFloat(formData.presupuesto_max) || undefined,
         estado: 'abierta',
       };
-      const res = await fetch('http://localhost:3000/api/solicitudes', {
+      const res = await fetch('https://forjanova-api-backend.onrender.com/api/solicitudes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ function App() {
   const handleCotizar = async (solicitudId, { precio, mensaje, tiempo_estimado_dias }) => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:3000/api/cotizaciones', {
+      const res = await fetch('https://forjanova-api-backend.onrender.com/api/cotizaciones', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ function App() {
   const handleAbrirChat = async (solicitudId, tecnicoId) => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:3000/api/conversaciones', {
+      const res = await fetch('https://forjanova-api-backend.onrender.com/api/conversaciones', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ function App() {
 
   const fetchSolicitudes = async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/solicitudes');
+      const res = await fetch('https://forjanova-api-backend.onrender.com/api/solicitudes');
       const data = await res.json();
       if (data.success) setSolicitudes(data.data);
     } catch (err) {
@@ -123,7 +123,7 @@ function App() {
   const fetchMySolicitudes = async () => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:3000/api/mis-solicitudes', {
+      const res = await fetch('https://forjanova-api-backend.onrender.com/api/mis-solicitudes', {
         headers: { 'Authorization': `Bearer ${authToken}` },
       });
       const data = await res.json();
@@ -136,7 +136,7 @@ function App() {
   const fetchTrabajos = async () => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:3000/api/mis-trabajos', {
+      const res = await fetch('https://forjanova-api-backend.onrender.com/api/mis-trabajos', {
         headers: { 'Authorization': `Bearer ${authToken}` },
       });
       const data = await res.json();

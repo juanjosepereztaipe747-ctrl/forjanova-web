@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user }) {
   const [formData, setFormData] = useState({
@@ -7,8 +7,31 @@ function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user }) {
     ubicacion: '',
     presupuesto_max: '',
     servicio: 'general',
+    lat: null,
+    lng: null,
   });
   const [loading, setLoading] = useState(false);
+  const [geoStatus, setGeoStatus] = useState('');
+
+  useEffect(() => {
+    // Obtener ubicación automáticamente al abrir
+    if (navigator.geolocation) {
+      setGeoStatus('Obteniendo tu ubicación...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setFormData((prev) => ({
+            ...prev,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }));
+          setGeoStatus('✅ Ubicación GPS obtenida');
+        },
+        () => {
+          setGeoStatus('⚠️ No se pudo obtener GPS, ingresa tu dirección');
+        }
+      );
+    }
+  }, []);
 
   const handleSubmit = async () => {
     if (!formData.titulo || !formData.descripcion || !formData.ubicacion) {
@@ -100,6 +123,15 @@ function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user }) {
               value={formData.ubicacion}
               onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
             />
+            {geoStatus && (
+              <span style={{
+                fontSize: '12px',
+                color: geoStatus.includes('✅') ? '#4caf50' : '#ffa726',
+                marginTop: '4px'
+              }}>
+                {geoStatus}
+              </span>
+            )}
           </div>
 
           <div style={styles.field}>

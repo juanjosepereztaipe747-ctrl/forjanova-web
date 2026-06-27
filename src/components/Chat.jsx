@@ -24,7 +24,7 @@ function Chat({ conversacion, user, onBack }) {
     const authToken = localStorage.getItem('token');
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/conversaciones/${conversacion.id}/mensajes`, {
+      const res = await fetch(`https://forjanova-api-backend.onrender.com/api/conversaciones/${conversacion.id}/mensajes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

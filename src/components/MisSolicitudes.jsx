@@ -170,7 +170,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
   async function aceptarCotizacion(cot) {
     const authToken = localStorage.getItem('token');
     try {
-      await fetch(`http://localhost:3000/api/cotizaciones/${cot.id}`, {
+      await fetch(`https://forjanova-api-backend.onrender.com/api/cotizaciones/${cot.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +178,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
         },
         body: JSON.stringify({ estado: 'aceptada' }),
       });
-      await fetch(`http://localhost:3000/api/solicitudes/${solicitudSeleccionada.id}`, {
+      await fetch(`https://forjanova-api-backend.onrender.com/api/solicitudes/${solicitudSeleccionada.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
