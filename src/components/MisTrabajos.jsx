@@ -12,10 +12,14 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
   const [subiendo, setSubiendo] = useState(false);
   const [descripcion, setDescripcion] = useState('');
   const fileInputRef = useRef(null);
+  const fotoperfilRef = useRef(null);
 
   const [perfil, setPerfil] = useState({ bio: '', servicios: '', descripcion_perfil: '' });
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
   const [perfilGuardado, setPerfilGuardado] = useState(false);
+
+  const [fotoPerfil, setFotoPerfil] = useState(null);
+  const [subiendoFotoPerfil, setSubiendoFotoPerfil] = useState(false);
 
   const [marcandoTerminado, setMarcandoTerminado] = useState({});
   const [terminados, setTerminados] = useState({});
@@ -30,10 +34,13 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
   const cargarPerfil = async () => {
     const { data } = await supabase
       .from('usuarios')
-      .select('bio, servicios, descripcion_perfil')
+      .select('bio, servicios, descripcion_perfil, foto_perfil')
       .eq('id', user.id)
       .single();
-    if (data) setPerfil({ bio: data.bio || '', servicios: data.servicios || '', descripcion_perfil: data.descripcion_perfil || '' });
+    if (data) {
+      setPerfil({ bio: data.bio || '', servicios: data.servicios || '', descripcion_perfil: data.descripcion_perfil || '' });
+      if (data.foto_perfil) setFotoPerfil(data.foto_perfil);
+    }
   };
 
   const guardarPerfil = async () => {
@@ -47,6 +54,36 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
       setPerfilGuardado(true);
       setTimeout(() => setPerfilGuardado(false), 3000);
     }
+  };
+
+  const subirFotoPerfil = async (e) => {
+    const archivo = e.target.files[0];
+    if (!archivo) return;
+    setSubiendoFotoPerfil(true);
+    try {
+      const ext = archivo.name.split('.').pop();
+      const nombreArchivo = `perfil_${user.id}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('perfiles')
+        .upload(nombreArchivo, archivo, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('perfiles').getPublicUrl(nombreArchivo);
+      const fotoUrl = urlData.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from('usuarios')
+        .update({ foto_perfil: fotoUrl })
+        .eq('id', user.id);
+      if (updateError) throw updateError;
+
+      setFotoPerfil(fotoUrl);
+      setPerfilGuardado(true);
+      setTimeout(() => setPerfilGuardado(false), 3000);
+    } catch (err) {
+      alert('Error al subir foto: ' + err.message);
+    }
+    setSubiendoFotoPerfil(false);
   };
 
   const cargarFotos = async () => {
@@ -69,9 +106,7 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         .from('trabajos')
         .upload(nombreArchivo, archivo);
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage
-        .from('trabajos')
-        .getPublicUrl(nombreArchivo);
+      const { data: urlData } = supabase.storage.from('trabajos').getPublicUrl(nombreArchivo);
       const { error: insertError } = await supabase
         .from('fotos_trabajos')
         .insert({ tecnico_id: user.id, url: urlData.publicUrl, descripcion });
@@ -149,7 +184,29 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         <h2 style={styles.sectionTitle}>👤 Mi perfil</h2>
         <p style={styles.sectionSub}>Esta información la verán los clientes cuando vean tu perfil</p>
 
-        {perfilGuardado && <div style={styles.toast}>✓ Perfil guardado</div>}
+        {perfilGuardado && <div style={styles.toast}>✓ Guardado correctamente</div>}
+
+        {/* FOTO DE PERFIL */}
+        <div style={styles.fotoPerfilWrap}>
+          <div style={styles.fotoPerfilAvatar} onClick={() => fotoperfilRef.current.click()}>
+            {fotoPerfil ? (
+              <img src={fotoPerfil} alt="perfil" style={styles.fotoPerfilImg} />
+            ) : (
+              <span style={styles.fotoPerfilLetra}>{user?.nombre?.[0]?.toUpperCase()}</span>
+            )}
+            <div style={styles.fotoPerfilOverlay}>
+              {subiendoFotoPerfil ? '⏳' : '📷'}
+            </div>
+          </div>
+          <div>
+            <p style={{ color: '#fff', fontWeight: '600', margin: '0 0 4px 0' }}>{user?.nombre}</p>
+            <p style={{ color: '#555', fontSize: '12px', margin: '0 0 8px 0' }}>Toca la foto para cambiarla</p>
+            <input type="file" accept="image/*" ref={fotoperfilRef} onChange={subirFotoPerfil} style={{ display: 'none' }} />
+            <button style={styles.cambiarFotoBtn} onClick={() => fotoperfilRef.current.click()} disabled={subiendoFotoPerfil}>
+              {subiendoFotoPerfil ? '⏳ Subiendo...' : '📷 Cambiar foto'}
+            </button>
+          </div>
+        </div>
 
         <div style={styles.perfilBox}>
           <div style={styles.field}>
@@ -303,6 +360,12 @@ const styles = {
   sectionTitle: { fontSize: '20px', fontWeight: '600', margin: '0 0 4px 0', color: '#fff' },
   sectionSub: { fontSize: '13px', color: '#555', margin: '0 0 20px 0' },
   toast: { background: '#1a3a1a', border: '1px solid #4caf50', color: '#4caf50', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '16px' },
+  fotoPerfilWrap: { display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px', padding: '16px', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px' },
+  fotoPerfilAvatar: { position: 'relative', width: '80px', height: '80px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0 },
+  fotoPerfilImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  fotoPerfilLetra: { fontSize: '32px', fontWeight: '700', color: '#ff6b1a' },
+  fotoPerfilOverlay: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', opacity: 0, transition: 'opacity 0.2s' },
+  cambiarFotoBtn: { background: 'transparent', border: '1px solid #ff6b1a', color: '#ff6b1a', borderRadius: '8px', padding: '6px 14px', fontSize: '13px', cursor: 'pointer' },
   perfilBox: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '12px' },
   field: { display: 'flex', flexDirection: 'column', gap: '6px' },
   fieldLabel: { fontSize: '13px', color: '#888', fontWeight: '500' },
