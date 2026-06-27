@@ -5,6 +5,7 @@ import CrearSolicitud from './components/CrearSolicitud';
 import MisSolicitudes from './components/MisSolicitudes';
 import MisTrabajos from './components/MisTrabajos';
 import Chat from './components/Chat';
+import Admin from './components/Admin';
 import './App.css';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
@@ -221,20 +222,19 @@ function App() {
     }
   }, [token, user]);
 
-  // Campanita flotante
   const Campanita = () => (
-    <div
-      style={estilosNotif.campanita}
-      onClick={() => { setMostrarNotif(true); }}
-    >
+    <div style={estilosNotif.campanita} onClick={() => setMostrarNotif(true)}>
       🔔
-      {noLeidas > 0 && (
-        <span style={estilosNotif.badge}>{noLeidas}</span>
-      )}
+      {noLeidas > 0 && <span style={estilosNotif.badge}>{noLeidas}</span>}
     </div>
   );
 
   if (!token) return <Login onLogin={handleLogin} loading={loading} />;
+
+  // Panel admin — acceso exclusivo
+  if (user?.rol === 'admin') {
+    return <Admin user={user} onLogout={handleLogout} />;
+  }
 
   if (conversacionActiva) {
     return (
