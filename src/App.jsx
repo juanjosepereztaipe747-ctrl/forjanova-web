@@ -8,8 +8,7 @@ import Chat from './components/Chat';
 import Admin from './components/Admin';
 import './App.css';
 
-const API = 'https://forjanova-api-backend.onrender.com/api';
-
+const API = 'https://forjanova-api-backend.onrender.com/api/admin';
 function NotificacionesPanel({ notificaciones, onCerrar, onMarcarLeidas }) {
   return (
     <div style={estilosNotif.overlay} onClick={onCerrar}>
@@ -305,4 +304,4 @@ const estilosNotif = {
   itemFecha: { fontSize: '11px', color: '#444', margin: 0 },
 };
 
-export default App;
+export default App;  

@@ -1,43 +1,89 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+
+const API = 'https://forjanova-api-backend.onrender.com/api/admin';
 
 function Admin({ user, onLogout }) {
-  const [stats, setStats] = useState({ usuarios: 0, tecnicos: 0, clientes: 0, solicitudes: 0, completadas: 0, calificaciones: 0 });
+  const [stats, setStats] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
   const [calificaciones, setCalificaciones] = useState([]);
   const [tab, setTab] = useState('stats');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const token = localStorage.getItem('token');
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   useEffect(() => { cargarTodo(); }, []);
 
   const cargarTodo = async () => {
     setLoading(true);
-    const [{ data: users }, { data: sols }, { data: califs }] = await Promise.all([
-      supabase.from('usuarios').select('*').order('created_at', { ascending: false }),
-      supabase.from('solicitudes').select('*, usuarios!solicitudes_cliente_id_fkey(nombre)').order('created_at', { ascending: false }),
-      supabase.from('calificaciones').select('*, usuarios!calificaciones_cliente_id_fkey(nombre)').order('created_at', { ascending: false }),
-    ]);
-
-    if (users) {
-      setUsuarios(users);
-      setStats({
-        usuarios: users.length,
-        tecnicos: users.filter(u => u.rol === 'tecnico' || u.rol === 'ambos').length,
-        clientes: users.filter(u => u.rol === 'cliente').length,
-        solicitudes: sols?.length || 0,
-        completadas: sols?.filter(s => s.estado === 'completada').length || 0,
-        calificaciones: califs?.length || 0,
-      });
+    setError('');
+    try {
+      const [resStats, resUsers, resSols, resCalifs] = await Promise.all([
+        fetch(`${API}/stats`, { headers }),
+        fetch(`${API}/usuarios`, { headers }),
+        fetch(`${API}/solicitudes`, { headers }),
+        fetch(`${API}/calificaciones`, { headers }),
+      ]);
+      const [dStats, dUsers, dSols, dCalifs] = await Promise.all([
+        resStats.json(), resUsers.json(), resSols.json(), resCalifs.json(),
+      ]);
+      if (dStats.success) setStats(dStats.data);
+      if (dUsers.success) setUsuarios(dUsers.data);
+      if (dSols.success) setSolicitudes(dSols.data);
+      if (dCalifs.success) setCalificaciones(dCalifs.data);
+    } catch (err) {
+      setError('Error cargando datos. Verifica tu conexión.');
     }
-    if (sols) setSolicitudes(sols);
-    if (califs) setCalificaciones(califs);
     setLoading(false);
   };
 
   const cambiarRol = async (userId, nuevoRol) => {
-    await supabase.from('usuarios').update({ rol: nuevoRol }).eq('id', userId);
-    await cargarTodo();
+    if (!window.confirm(`¿Cambiar rol a "${nuevoRol}"?`)) return;
+    try {
+      const res = await fetch(`${API}/usuarios/${userId}/rol`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ rol: nuevoRol }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert('Error: ' + data.error);
+        return;
+      }
+      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: nuevoRol } : u));
+    } catch (err) {
+      alert('Error cambiando rol');
+    }
+  };
+
+  const cambiarEstadoSolicitud = async (solId, estado) => {
+    if (!window.confirm(`¿Cambiar estado a "${estado}"?`)) return;
+    try {
+      const res = await fetch(`${API}/solicitudes/${solId}/estado`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ estado }),
+      });
+      const data = await res.json();
+      if (!data.success) { alert('Error: ' + data.error); return; }
+      setSolicitudes(prev => prev.map(s => s.id === solId ? { ...s, estado } : s));
+    } catch (err) {
+      alert('Error cambiando estado');
+    }
+  };
+
+  const eliminarSolicitud = async (solId) => {
+    if (!window.confirm('¿Eliminar esta solicitud? Esta acción no se puede deshacer.')) return;
+    try {
+      const res = await fetch(`${API}/solicitudes/${solId}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (!data.success) { alert('Error: ' + data.error); return; }
+      setSolicitudes(prev => prev.filter(s => s.id !== solId));
+    } catch (err) {
+      alert('Error eliminando solicitud');
+    }
   };
 
   const rolColor = (rol) => {
@@ -51,6 +97,7 @@ function Admin({ user, onLogout }) {
     if (estado === 'abierta') return '#4caf50';
     if (estado === 'aceptada') return '#ff6b1a';
     if (estado === 'completada') return '#7c7cff';
+    if (estado === 'cancelada') return '#f44336';
     return '#888';
   };
 
@@ -79,37 +126,27 @@ function Admin({ user, onLogout }) {
       <div style={s.content}>
         {loading ? (
           <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>Cargando...</p>
+        ) : error ? (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <p style={{ color: '#f44336' }}>{error}</p>
+            <button onClick={cargarTodo} style={s.logoutBtn}>Reintentar</button>
+          </div>
         ) : (
           <>
             {/* STATS */}
-            {tab === 'stats' && (
+            {tab === 'stats' && stats && (
               <div>
                 <h2 style={s.title}>📊 Resumen general</h2>
                 <div style={s.statsGrid}>
-                  <div style={s.statCard}>
-                    <p style={s.statNum}>{stats.usuarios}</p>
-                    <p style={s.statLabel}>Usuarios totales</p>
-                  </div>
-                  <div style={s.statCard}>
-                    <p style={{ ...s.statNum, color: '#42a5f5' }}>{stats.tecnicos}</p>
-                    <p style={s.statLabel}>Técnicos</p>
-                  </div>
-                  <div style={s.statCard}>
-                    <p style={{ ...s.statNum, color: '#4caf50' }}>{stats.clientes}</p>
-                    <p style={s.statLabel}>Clientes</p>
-                  </div>
-                  <div style={s.statCard}>
-                    <p style={{ ...s.statNum, color: '#ff6b1a' }}>{stats.solicitudes}</p>
-                    <p style={s.statLabel}>Solicitudes totales</p>
-                  </div>
-                  <div style={s.statCard}>
-                    <p style={{ ...s.statNum, color: '#7c7cff' }}>{stats.completadas}</p>
-                    <p style={s.statLabel}>Trabajos completados</p>
-                  </div>
-                  <div style={s.statCard}>
-                    <p style={{ ...s.statNum, color: '#ffa726' }}>{stats.calificaciones}</p>
-                    <p style={s.statLabel}>Calificaciones</p>
-                  </div>
+                  <div style={s.statCard}><p style={s.statNum}>{stats.usuarios}</p><p style={s.statLabel}>Usuarios totales</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#42a5f5' }}>{stats.tecnicos}</p><p style={s.statLabel}>Técnicos</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#4caf50' }}>{stats.clientes}</p><p style={s.statLabel}>Clientes</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#ff6b1a' }}>{stats.solicitudes}</p><p style={s.statLabel}>Solicitudes totales</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#4caf50' }}>{stats.abiertas}</p><p style={s.statLabel}>Abiertas</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#7c7cff' }}>{stats.completadas}</p><p style={s.statLabel}>Completadas</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#ffa726' }}>{stats.calificaciones}</p><p style={s.statLabel}>Calificaciones</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#ffa726' }}>{stats.promedio_estrellas}★</p><p style={s.statLabel}>Promedio estrellas</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#ff6b1a', fontSize: '24px' }}>S/. {stats.monto_total}</p><p style={s.statLabel}>Monto total en solicitudes</p></div>
                 </div>
               </div>
             )}
@@ -118,43 +155,49 @@ function Admin({ user, onLogout }) {
             {tab === 'usuarios' && (
               <div>
                 <h2 style={s.title}>👥 Usuarios ({usuarios.length})</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {usuarios.map((u) => {
-                    const rc = rolColor(u.rol);
-                    return (
-                      <div key={u.id} style={s.card}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#ff6b1a', overflow: 'hidden', flexShrink: 0 }}>
-                              {u.foto_perfil ? <img src={u.foto_perfil} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : u.nombre?.[0]?.toUpperCase()}
+                {usuarios.length === 0 ? (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>No hay usuarios registrados</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {usuarios.map((u) => {
+                      const rc = rolColor(u.rol);
+                      const esMiUsuario = u.id === user?.id;
+                      return (
+                        <div key={u.id} style={{ ...s.card, ...(esMiUsuario ? { border: '1px solid #e040fb' } : {}) }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#ff6b1a', overflow: 'hidden', flexShrink: 0 }}>
+                                {u.foto_perfil ? <img src={u.foto_perfil} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : u.nombre?.[0]?.toUpperCase()}
+                              </div>
+                              <div>
+                                <p style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 2px 0' }}>
+                                  {u.nombre} {esMiUsuario && <span style={{ fontSize: '11px', color: '#e040fb' }}>(tú)</span>}
+                                </p>
+                                <p style={{ fontSize: '12px', color: '#555', margin: 0 }}>{u.email}</p>
+                                {u.ciudad && <p style={{ fontSize: '11px', color: '#444', margin: '2px 0 0 0' }}>📍 {u.ciudad}</p>}
+                              </div>
                             </div>
-                            <div>
-                              <p style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 2px 0' }}>{u.nombre}</p>
-                              <p style={{ fontSize: '12px', color: '#555', margin: 0 }}>{u.email}</p>
-                              {u.ciudad && <p style={{ fontSize: '11px', color: '#444', margin: '2px 0 0 0' }}>📍 {u.ciudad}</p>}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ ...s.rolBadge, background: rc.bg, color: rc.color }}>{u.rol}</span>
+                              {!esMiUsuario && (
+                                <select style={s.rolSelect} value={u.rol} onChange={(e) => cambiarRol(u.id, e.target.value)}>
+                                  <option value="cliente">cliente</option>
+                                  <option value="tecnico">tecnico</option>
+                                  <option value="ambos">ambos</option>
+                                  <option value="admin">admin</option>
+                                </select>
+                              )}
+                              {esMiUsuario && <span style={{ fontSize: '11px', color: '#555' }}>no editable</span>}
                             </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ ...s.rolBadge, background: rc.bg, color: rc.color }}>{u.rol}</span>
-                            <select
-                              style={s.rolSelect}
-                              value={u.rol}
-                              onChange={(e) => cambiarRol(u.id, e.target.value)}
-                            >
-                              <option value="cliente">cliente</option>
-                              <option value="tecnico">tecnico</option>
-                              <option value="ambos">ambos</option>
-                              <option value="admin">admin</option>
-                            </select>
-                          </div>
+                          {u.rating > 0 && (
+                            <p style={{ fontSize: '12px', color: '#ff6b1a', margin: '8px 0 0 0' }}>★ {u.rating} · {u.trabajos_completados} trabajos completados</p>
+                          )}
                         </div>
-                        {u.rating > 0 && (
-                          <p style={{ fontSize: '12px', color: '#ff6b1a', margin: '8px 0 0 0' }}>★ {u.rating} · {u.trabajos_completados} trabajos completados</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -162,23 +205,38 @@ function Admin({ user, onLogout }) {
             {tab === 'solicitudes' && (
               <div>
                 <h2 style={s.title}>📋 Solicitudes ({solicitudes.length})</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {solicitudes.map((sol) => (
-                    <div key={sol.id} style={s.card}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: '600', color: estadoColor(sol.estado) }}>● {sol.estado}</span>
-                        {sol.presupuesto_max && <span style={{ fontSize: '14px', fontWeight: '700', color: '#ff6b1a' }}>S/. {sol.presupuesto_max}</span>}
+                {solicitudes.length === 0 ? (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>No hay solicitudes</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {solicitudes.map((sol) => (
+                      <div key={sol.id} style={s.card}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '600', color: estadoColor(sol.estado) }}>● {sol.estado}</span>
+                          {sol.presupuesto_max && <span style={{ fontSize: '14px', fontWeight: '700', color: '#ff6b1a' }}>S/. {sol.presupuesto_max}</span>}
+                        </div>
+                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px 0' }}>{sol.titulo || sol.descripcion?.slice(0, 40)}</p>
+                        <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px 0' }}>{sol.descripcion}</p>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                          {sol.ubicacion && <span style={s.tag}>📍 {sol.ubicacion}</span>}
+                          <span style={s.tag}>👤 {sol.usuarios?.nombre || 'Cliente'}</span>
+                          <span style={s.tag}>🗓 {new Date(sol.created_at).toLocaleDateString('es-PE')}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {['abierta', 'aceptada', 'completada', 'cancelada'].filter(e => e !== sol.estado).map(estado => (
+                            <button key={estado} onClick={() => cambiarEstadoSolicitud(sol.id, estado)}
+                              style={{ ...s.actionBtn, color: estadoColor(estado), borderColor: estadoColor(estado) }}>
+                              → {estado}
+                            </button>
+                          ))}
+                          <button onClick={() => eliminarSolicitud(sol.id)} style={{ ...s.actionBtn, color: '#f44336', borderColor: '#f44336' }}>
+                            🗑 eliminar
+                          </button>
+                        </div>
                       </div>
-                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 4px 0' }}>{sol.titulo || sol.descripcion?.slice(0, 40)}</p>
-                      <p style={{ fontSize: '13px', color: '#666', margin: '0 0 6px 0' }}>{sol.descripcion}</p>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {sol.ubicacion && <span style={s.tag}>📍 {sol.ubicacion}</span>}
-                        <span style={s.tag}>👤 {sol.usuarios?.nombre || 'Cliente'}</span>
-                        <span style={s.tag}>🗓 {new Date(sol.created_at).toLocaleDateString('es-PE')}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -186,18 +244,22 @@ function Admin({ user, onLogout }) {
             {tab === 'calificaciones' && (
               <div>
                 <h2 style={s.title}>⭐ Calificaciones ({calificaciones.length})</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {calificaciones.map((c) => (
-                    <div key={c.id} style={s.card}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{c.usuarios?.nombre || 'Cliente'}</span>
-                        <span style={{ color: '#ff6b1a', fontSize: '14px' }}>{'★'.repeat(c.estrellas)}{'☆'.repeat(5 - c.estrellas)}</span>
+                {calificaciones.length === 0 ? (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>No hay calificaciones aún</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {calificaciones.map((c) => (
+                      <div key={c.id} style={s.card}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{c.usuarios?.nombre || 'Cliente'}</span>
+                          <span style={{ color: '#ff6b1a', fontSize: '14px' }}>{'★'.repeat(c.estrellas)}{'☆'.repeat(5 - c.estrellas)}</span>
+                        </div>
+                        {c.comentario && <p style={{ fontSize: '13px', color: '#888', margin: '0 0 6px 0' }}>{c.comentario}</p>}
+                        <span style={s.tag}>🗓 {new Date(c.created_at).toLocaleDateString('es-PE')}</span>
                       </div>
-                      {c.comentario && <p style={{ fontSize: '13px', color: '#888', margin: '0 0 6px 0' }}>{c.comentario}</p>}
-                      <span style={s.tag}>🗓 {new Date(c.created_at).toLocaleDateString('es-PE')}</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -227,6 +289,7 @@ const s = {
   rolBadge: { fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px' },
   rolSelect: { background: '#111', border: '1px solid #333', color: '#aaa', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' },
   tag: { fontSize: '11px', color: '#666', background: '#111', padding: '3px 8px', borderRadius: '20px', border: '1px solid #2a2a2a' },
+  actionBtn: { background: 'transparent', border: '1px solid', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer' },
 };
 
 export default Admin;
