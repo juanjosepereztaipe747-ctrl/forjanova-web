@@ -8,7 +8,7 @@ import Chat from './components/Chat';
 import Admin from './components/Admin';
 import './App.css';
 
-const API = 'https://forjanova-api-backend.onrender.com/api/admin';
+const API = 'https://forjanova-api-backend.onrender.com/api';
 function NotificacionesPanel({ notificaciones, onCerrar, onMarcarLeidas }) {
   return (
     <div style={estilosNotif.overlay} onClick={onCerrar}>
