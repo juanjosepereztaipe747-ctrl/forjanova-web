@@ -11,10 +11,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
   const [editando, setEditando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [msg, setMsg] = useState('');
-
-  const [form, setForm] = useState({
-    nombre: '', ciudad: '', especialidad: '', telefono: '', bio: '',
-  });
+  const [form, setForm] = useState({ nombre: '', ciudad: '', especialidad: '', telefono: '', bio: '' });
 
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -29,29 +26,16 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
       const data = await res.json();
       if (data.success) {
         setPerfil(data.data);
-        setForm({
-          nombre: data.data.nombre || '',
-          ciudad: data.data.ciudad || '',
-          especialidad: data.data.especialidad || '',
-          telefono: data.data.telefono || '',
-          bio: data.data.bio || '',
-        });
+        setForm({ nombre: data.data.nombre || '', ciudad: data.data.ciudad || '', especialidad: data.data.especialidad || '', telefono: data.data.telefono || '', bio: data.data.bio || '' });
       }
-    } catch (err) {
-      setMsg('Error cargando perfil');
-    }
+    } catch (err) { setMsg('Error cargando perfil'); }
     setLoading(false);
   };
 
   const guardarPerfil = async () => {
-    setGuardando(true);
-    setMsg('');
+    setGuardando(true); setMsg('');
     try {
-      const res = await fetch(`${API}/perfil/me`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(form),
-      });
+      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify(form) });
       const data = await res.json();
       if (data.success) {
         setPerfil(prev => ({ ...prev, ...data.data }));
@@ -59,64 +43,39 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
         setEditando(false);
         setMsg('✅ Perfil actualizado');
         setTimeout(() => setMsg(''), 3000);
-      } else {
-        setMsg('Error: ' + data.error);
-      }
-    } catch (err) {
-      setMsg('Error guardando perfil');
-    }
+      } else { setMsg('Error: ' + data.error); }
+    } catch (err) { setMsg('Error guardando perfil'); }
     setGuardando(false);
   };
 
   const toggleDisponibilidad = async () => {
     const nuevo = !perfil.disponible;
     try {
-      const res = await fetch(`${API}/perfil/me`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ disponible: nuevo }),
-      });
+      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify({ disponible: nuevo }) });
       const data = await res.json();
       if (data.success) {
         setPerfil(prev => ({ ...prev, disponible: nuevo }));
         onUserUpdate && onUserUpdate({ ...perfil, disponible: nuevo });
       }
-    } catch (err) {
-      setMsg('Error cambiando disponibilidad');
-    }
+    } catch (err) { setMsg('Error cambiando disponibilidad'); }
   };
 
   const subirFoto = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) { setMsg('La foto no debe superar 2MB'); return; }
-
-    setSubiendoFoto(true);
-    setMsg('');
+    setSubiendoFoto(true); setMsg('');
     try {
       const ext = file.name.split('.').pop();
       const filename = `perfil_${user.id}_${Date.now()}.${ext}`;
-
       const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/perfiles/${filename}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'apikey': SUPABASE_ANON,
-          'Content-Type': file.type,
-          'x-upsert': 'true',
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON, 'Content-Type': file.type, 'x-upsert': 'true' },
         body: file,
       });
-
       if (!uploadRes.ok) throw new Error('Error subiendo imagen');
-
       const foto_perfil = `${SUPABASE_URL}/storage/v1/object/public/perfiles/${filename}`;
-
-      const res = await fetch(`${API}/perfil/me`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({ foto_perfil }),
-      });
+      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify({ foto_perfil }) });
       const data = await res.json();
       if (data.success) {
         setPerfil(prev => ({ ...prev, foto_perfil }));
@@ -124,28 +83,21 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
         setMsg('✅ Foto actualizada');
         setTimeout(() => setMsg(''), 3000);
       }
-    } catch (err) {
-      setMsg('Error subiendo foto: ' + err.message);
-    }
+    } catch (err) { setMsg('Error subiendo foto: ' + err.message); }
     setSubiendoFoto(false);
   };
 
-  const navItems = [
-    { id: 'home', label: '🏠 Inicio' },
-    { id: 'mis', label: '📋 Mis Solicitudes' },
-    ...(esTecnico ? [{ id: 'trabajos', label: '🔧 Mis Trabajos' }] : []),
-    { id: 'perfil', label: '👤 Perfil' },
-  ];
+  const rolColor = (rol) => {
+    if (rol === 'admin') return { background: '#2a0a2a', color: '#e040fb' };
+    if (rol === 'tecnico') return { background: '#0a1a2a', color: '#42a5f5' };
+    if (rol === 'ambos') return { background: '#1a1a0a', color: '#ffa726' };
+    return { background: '#1a1a1a', color: '#888' };
+  };
 
-  if (loading) return (
-    <div style={s.bg}>
-      <p style={{ color: '#555', textAlign: 'center', padding: '80px' }}>Cargando perfil...</p>
-    </div>
-  );
+  if (loading) return <div style={s.bg}><p style={{ color: '#555', textAlign: 'center', padding: '80px' }}>Cargando perfil...</p></div>;
 
   return (
     <div style={s.bg}>
-      {/* HEADER */}
       <div style={s.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '20px' }}>🔥</span>
@@ -154,46 +106,35 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
         <button style={s.logoutBtn} onClick={onLogout}>Salir</button>
       </div>
 
-      {/* NAV */}
       <div style={s.tabs}>
-        {navItems.map(item => (
-          <button key={item.id}
-            style={{ ...s.tab, ...(item.id === 'perfil' ? s.tabActive : {}) }}
-            onClick={() => onChangeView(item.id)}>
+        {[
+          { id: 'home', label: '🏠 Inicio' },
+          { id: 'mis', label: '📋 Mis Solicitudes' },
+          ...(esTecnico ? [{ id: 'trabajos', label: '🔧 Mis Trabajos' }] : []),
+          { id: 'perfil', label: '👤 Perfil' },
+        ].map(item => (
+          <button key={item.id} style={{ ...s.tab, ...(item.id === 'perfil' ? s.tabActive : {}) }} onClick={() => onChangeView(item.id)}>
             {item.label}
           </button>
         ))}
       </div>
 
       <div style={s.content}>
-        {/* FOTO + DISPONIBILIDAD */}
         <div style={s.fotoSection}>
           <div style={s.fotoWrap}>
-            {perfil?.foto_perfil
-              ? <img src={perfil.foto_perfil} style={s.fotoImg} alt="foto" />
-              : <div style={s.fotoPlaceholder}>{perfil?.nombre?.[0]?.toUpperCase()}</div>
-            }
+            {perfil?.foto_perfil ? <img src={perfil.foto_perfil} style={s.fotoImg} alt="foto" /> : <div style={s.fotoPlaceholder}>{perfil?.nombre?.[0]?.toUpperCase()}</div>}
             <label style={s.fotoBtn} title="Cambiar foto">
               {subiendoFoto ? '⏳' : '📷'}
               <input type="file" accept="image/*" style={{ display: 'none' }} onChange={subirFoto} />
             </label>
           </div>
-
           <div>
             <h2 style={s.nombreTitle}>{perfil?.nombre}</h2>
             <p style={{ fontSize: '13px', color: '#555', margin: '2px 0 8px 0' }}>{perfil?.email}</p>
             <span style={{ ...s.rolBadge, ...rolColor(perfil?.rol) }}>{perfil?.rol}</span>
-
-            {/* Toggle disponibilidad — solo técnicos */}
             {esTecnico && (
               <div style={{ marginTop: '12px' }}>
-                <button onClick={toggleDisponibilidad}
-                  style={{
-                    ...s.toggleBtn,
-                    background: perfil?.disponible ? '#0a2a0a' : '#2a0a0a',
-                    color: perfil?.disponible ? '#4caf50' : '#f44336',
-                    borderColor: perfil?.disponible ? '#4caf50' : '#f44336',
-                  }}>
+                <button onClick={toggleDisponibilidad} style={{ ...s.toggleBtn, background: perfil?.disponible ? '#0a2a0a' : '#2a0a0a', color: perfil?.disponible ? '#4caf50' : '#f44336', borderColor: perfil?.disponible ? '#4caf50' : '#f44336' }}>
                   {perfil?.disponible ? '🟢 Disponible para trabajos' : '🔴 No disponible'}
                 </button>
               </div>
@@ -201,25 +142,14 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
           </div>
         </div>
 
-        {/* STATS — solo técnicos */}
         {esTecnico && (
           <div style={s.statsRow}>
-            <div style={s.statCard}>
-              <p style={s.statNum}>{perfil?.rating || '—'}</p>
-              <p style={s.statLabel}>⭐ Rating</p>
-            </div>
-            <div style={s.statCard}>
-              <p style={s.statNum}>{perfil?.trabajos_completados || 0}</p>
-              <p style={s.statLabel}>✅ Trabajos</p>
-            </div>
-            <div style={s.statCard}>
-              <p style={s.statNum}>{perfil?.especialidad || '—'}</p>
-              <p style={s.statLabel}>🔧 Especialidad</p>
-            </div>
+            <div style={s.statCard}><p style={s.statNum}>{perfil?.rating || '—'}</p><p style={s.statLabel}>⭐ Rating</p></div>
+            <div style={s.statCard}><p style={s.statNum}>{perfil?.trabajos_completados || 0}</p><p style={s.statLabel}>✅ Trabajos</p></div>
+            <div style={s.statCard}><p style={s.statNum}>{perfil?.especialidad || '—'}</p><p style={s.statLabel}>🔧 Especialidad</p></div>
           </div>
         )}
 
-        {/* DATOS */}
         <div style={s.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={s.cardTitle}>Mis datos</h3>
@@ -227,59 +157,36 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
               ? <button style={s.editBtn} onClick={() => setEditando(true)}>✏️ Editar</button>
               : <div style={{ display: 'flex', gap: '8px' }}>
                   <button style={s.cancelBtn} onClick={() => setEditando(false)}>Cancelar</button>
-                  <button style={s.saveBtn} onClick={guardarPerfil} disabled={guardando}>
-                    {guardando ? 'Guardando...' : '💾 Guardar'}
-                  </button>
+                  <button style={s.saveBtn} onClick={guardarPerfil} disabled={guardando}>{guardando ? 'Guardando...' : '💾 Guardar'}</button>
                 </div>
             }
           </div>
-
           {msg && <p style={{ fontSize: '13px', color: msg.startsWith('✅') ? '#4caf50' : '#f44336', marginBottom: '12px' }}>{msg}</p>}
-
           <div style={s.fieldsGrid}>
             <div style={s.fieldWrap}>
               <label style={s.label}>Nombre</label>
-              {editando
-                ? <input style={s.input} value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} />
-                : <p style={s.fieldVal}>{perfil?.nombre || '—'}</p>
-              }
+              {editando ? <input style={s.input} value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.nombre || '—'}</p>}
             </div>
             <div style={s.fieldWrap}>
               <label style={s.label}>Ciudad</label>
-              {editando
-                ? <input style={s.input} value={form.ciudad} onChange={e => setForm(p => ({ ...p, ciudad: e.target.value }))} />
-                : <p style={s.fieldVal}>{perfil?.ciudad || '—'}</p>
-              }
+              {editando ? <input style={s.input} value={form.ciudad} onChange={e => setForm(p => ({ ...p, ciudad: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.ciudad || '—'}</p>}
             </div>
-            {esTecnico && (
-              <>
-                <div style={s.fieldWrap}>
-                  <label style={s.label}>Especialidad</label>
-                  {editando
-                    ? <input style={s.input} value={form.especialidad} onChange={e => setForm(p => ({ ...p, especialidad: e.target.value }))} />
-                    : <p style={s.fieldVal}>{perfil?.especialidad || '—'}</p>
-                  }
-                </div>
-                <div style={s.fieldWrap}>
-                  <label style={s.label}>Teléfono</label>
-                  {editando
-                    ? <input style={s.input} value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} />
-                    : <p style={s.fieldVal}>{perfil?.telefono || '—'}</p>
-                  }
-                </div>
-              </>
-            )}
+            {esTecnico && <>
+              <div style={s.fieldWrap}>
+                <label style={s.label}>Especialidad</label>
+                {editando ? <input style={s.input} value={form.especialidad} onChange={e => setForm(p => ({ ...p, especialidad: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.especialidad || '—'}</p>}
+              </div>
+              <div style={s.fieldWrap}>
+                <label style={s.label}>Teléfono</label>
+                {editando ? <input style={s.input} value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.telefono || '—'}</p>}
+              </div>
+            </>}
             <div style={{ ...s.fieldWrap, gridColumn: '1 / -1' }}>
               <label style={s.label}>Bio</label>
-              {editando
-                ? <textarea style={{ ...s.input, height: '80px', resize: 'vertical' }} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} />
-                : <p style={s.fieldVal}>{perfil?.bio || '—'}</p>
-              }
+              {editando ? <textarea style={{ ...s.input, height: '80px', resize: 'vertical' }} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.bio || '—'}</p>}
             </div>
           </div>
         </div>
-
-        {/* MIEMBRO DESDE */}
         <p style={{ fontSize: '12px', color: '#333', textAlign: 'center', marginTop: '16px' }}>
           Miembro desde {perfil?.created_at ? new Date(perfil.created_at).toLocaleDateString('es-PE', { year: 'numeric', month: 'long' }) : '—'}
         </p>
@@ -287,13 +194,6 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
     </div>
   );
 }
-
-const rolColor = (rol) => {
-  if (rol === 'admin') return { background: '#2a0a2a', color: '#e040fb' };
-  if (rol === 'tecnico') return { background: '#0a1a2a', color: '#42a5f5' };
-  if (rol === 'ambos') return { background: '#1a1a0a', color: '#ffa726' };
-  return { background: '#1a1a1a', color: '#888' };
-};
 
 const s = {
   bg: { minHeight: '100vh', background: '#0f0f0f', fontFamily: "'Segoe UI', sans-serif", color: '#fff' },
