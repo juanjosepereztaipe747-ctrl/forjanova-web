@@ -116,7 +116,6 @@ function ModalTecnico({ tecnico, onClose }) {
 
           {tecnico.descripcion_perfil && <p style={styles.tecnicoDescModal}>{tecnico.descripcion_perfil}</p>}
 
-          {/* PORTAFOLIO */}
           <h4 style={styles.portafolioTitle}>📸 Portafolio</h4>
           {fotos.length > 0 ? (
             <div style={styles.fotosGridModal}>
@@ -131,16 +130,13 @@ function ModalTecnico({ tecnico, onClose }) {
             <p style={styles.sinFotos}>Este técnico aún no ha subido fotos de sus trabajos</p>
           )}
 
-          {/* RESEÑAS */}
           <h4 style={{ ...styles.portafolioTitle, marginTop: '24px' }}>⭐ Reseñas de clientes</h4>
           {calificaciones.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {calificaciones.map((c) => (
                 <div key={c.id} style={styles.reseñaCard}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>
-                      {c.usuarios?.nombre || 'Cliente'}
-                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{c.usuarios?.nombre || 'Cliente'}</span>
                     <EstrellasFijas valor={c.estrellas} />
                   </div>
                   {c.comentario && <p style={{ fontSize: '13px', color: '#aaa', margin: '0 0 8px 0', lineHeight: '1.5' }}>{c.comentario}</p>}
@@ -217,8 +213,8 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
         {esTecnico && (
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
+        <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
-      <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
       </div>
 
       <div style={styles.tabsWrap}>
