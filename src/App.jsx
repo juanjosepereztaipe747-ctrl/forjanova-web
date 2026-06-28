@@ -11,7 +11,6 @@ import './App.css';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
 
-// ── TOAST COMPONENT ──
 function ToastContainer({ toasts }) {
   return (
     <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -75,7 +74,6 @@ function App() {
   const notifInterval = useRef(null);
   const toastId = useRef(0);
 
-  // ── TOAST SYSTEM ──
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((mensaje, tipo = 'success') => {
@@ -90,9 +88,7 @@ function App() {
     const authToken = localStorage.getItem('token');
     if (!authToken) return;
     try {
-      const res = await fetch(`${API}/notificaciones`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const res = await fetch(`${API}/notificaciones`, { headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json();
       if (data.success) setNotificaciones(data.data);
     } catch (err) {}
@@ -101,10 +97,7 @@ function App() {
   const marcarLeidas = async () => {
     const authToken = localStorage.getItem('token');
     try {
-      await fetch(`${API}/notificaciones/leer`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      await fetch(`${API}/notificaciones/leer`, { method: 'PUT', headers: { Authorization: `Bearer ${authToken}` } });
       setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })));
     } catch (err) {}
   };
@@ -135,11 +128,7 @@ function App() {
   const handleCreateSolicitud = async (formData) => {
     const authToken = localStorage.getItem('token');
     try {
-      const payload = {
-        ...formData,
-        presupuesto_max: parseFloat(formData.presupuesto_max) || undefined,
-        estado: 'abierta',
-      };
+      const payload = { ...formData, presupuesto_max: parseFloat(formData.presupuesto_max) || undefined, estado: 'abierta' };
       const res = await fetch(`${API}/solicitudes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
@@ -206,9 +195,7 @@ function App() {
   const fetchMySolicitudes = async () => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API}/mis-solicitudes`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const res = await fetch(`${API}/mis-solicitudes`, { headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json();
       if (data.success) setMySolicitudes(data.data);
     } catch (err) {}
@@ -217,9 +204,7 @@ function App() {
   const fetchTrabajos = async () => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API}/mis-trabajos`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      });
+      const res = await fetch(`${API}/mis-trabajos`, { headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json();
       if (data.success) setTrabajos(data.data);
     } catch (err) {}
@@ -278,8 +263,14 @@ function App() {
     </>
   );
 
+  // ── FIX: ToastContainer incluido en admin ──
   if (user?.rol === 'admin') {
-    return <Admin user={user} onLogout={handleLogout} showToast={showToast} />;
+    return (
+      <>
+        <ToastContainer toasts={toasts} />
+        <Admin user={user} onLogout={handleLogout} showToast={showToast} />
+      </>
+    );
   }
 
   if (conversacionActiva) {
