@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
 
-function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat }) {
+function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast }) {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
   const [cotizaciones, setCotizaciones] = useState([]);
   const [loadingCotizaciones, setLoadingCotizaciones] = useState(false);
@@ -64,7 +64,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
   };
 
   const enviarCalificacion = async () => {
-    if (!estrellas) return alert('Selecciona una puntuación');
+    if (!estrellas) { showToast('Selecciona una puntuación', 'warning'); return; }
     setEnviandoCalif(true);
     try {
       let foto_url = null;
@@ -88,10 +88,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
 
       const res = await fetch(`${API}/calificaciones`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           solicitud_id: modalCalif.solicitud.id,
           tecnico_id: modalCalif.tecnico_id,
@@ -106,8 +103,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
 
       setCalifEnviada((prev) => ({ ...prev, [modalCalif.solicitud.id]: true }));
       setModalCalif(null);
+      showToast('✅ Calificación enviada', 'success');
     } catch (err) {
-      alert('Error al enviar: ' + err.message);
+      showToast('Error al enviar: ' + err.message, 'error');
     }
     setEnviandoCalif(false);
   };
@@ -136,8 +134,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
       const data = await res.json();
       if (data.success) setCotizaciones(data.data);
       setSolicitudSeleccionada({ ...solicitudSeleccionada, estado: 'aceptada' });
+      showToast('✅ Cotización aceptada', 'success');
     } catch (err) {
-      alert('Error al aceptar: ' + err.message);
+      showToast('Error al aceptar: ' + err.message, 'error');
     }
   }
 
@@ -160,8 +159,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                 <p style={{ color: '#888', fontSize: '13px', marginBottom: '10px' }}>¿Cómo fue el trabajo?</p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                   {[1, 2, 3, 4, 5].map((n) => (
-                    <span
-                      key={n}
+                    <span key={n}
                       style={{ fontSize: '36px', cursor: 'pointer', color: n <= (estrellasHover || estrellas) ? '#ff6b1a' : '#333', transition: 'color 0.1s' }}
                       onMouseEnter={() => setEstrellasHover(n)}
                       onMouseLeave={() => setEstrellasHover(0)}
@@ -176,31 +174,22 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                 )}
               </div>
 
-              <textarea
-                placeholder="Cuéntanos tu experiencia (opcional)..."
-                value={comentario}
-                onChange={(e) => setComentario(e.target.value)}
-                style={styles.textarea}
-                rows={3}
-              />
+              <textarea placeholder="Cuéntanos tu experiencia (opcional)..." value={comentario}
+                onChange={(e) => setComentario(e.target.value)} style={styles.textarea} rows={3} />
 
               <div style={{ marginTop: '12px' }}>
                 <p style={{ color: '#666', fontSize: '12px', marginBottom: '8px' }}>📷 Foto del trabajo (opcional)</p>
                 <label style={styles.fotoLabel}>
-                  {fotoPreview ? (
-                    <img src={fotoPreview} alt="preview" style={{ width: '100%', borderRadius: '8px', maxHeight: '160px', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ color: '#555', fontSize: '13px' }}>Toca para subir foto</span>
-                  )}
+                  {fotoPreview
+                    ? <img src={fotoPreview} alt="preview" style={{ width: '100%', borderRadius: '8px', maxHeight: '160px', objectFit: 'cover' }} />
+                    : <span style={{ color: '#555', fontSize: '13px' }}>Toca para subir foto</span>
+                  }
                   <input type="file" accept="image/*" onChange={handleFotoCalif} style={{ display: 'none' }} />
                 </label>
               </div>
 
-              <button
-                style={{ ...styles.aceptarBtn, marginTop: '16px', opacity: enviandoCalif ? 0.6 : 1 }}
-                onClick={enviarCalificacion}
-                disabled={enviandoCalif}
-              >
+              <button style={{ ...styles.aceptarBtn, marginTop: '16px', opacity: enviandoCalif ? 0.6 : 1 }}
+                onClick={enviarCalificacion} disabled={enviandoCalif}>
                 {enviandoCalif ? 'Enviando...' : 'Enviar calificación'}
               </button>
             </div>
@@ -301,11 +290,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <button style={styles.verCotBtn} onClick={() => verCotizaciones(sol)}>Ver cotizaciones</button>
                     {sol.estado === 'completada' && (
-                      yaCalificada ? (
-                        <div style={styles.califOkBadge}>✓ Ya calificaste este trabajo</div>
-                      ) : (
-                        <button style={styles.califBtn} onClick={() => abrirModalCalif(sol)}>⭐ Calificar trabajo</button>
-                      )
+                      yaCalificada
+                        ? <div style={styles.califOkBadge}>✓ Ya calificaste este trabajo</div>
+                        : <button style={styles.califBtn} onClick={() => abrirModalCalif(sol)}>⭐ Calificar trabajo</button>
                     )}
                   </div>
                 </div>

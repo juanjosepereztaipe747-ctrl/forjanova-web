@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Login from './components/Login';
 import Home from './components/Home';
 import CrearSolicitud from './components/CrearSolicitud';
@@ -10,6 +10,32 @@ import Perfil from './components/Perfil';
 import './App.css';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
+
+// ── TOAST COMPONENT ──
+function ToastContainer({ toasts }) {
+  return (
+    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {toasts.map((t) => {
+        const colores = {
+          success: { bg: '#0a2a0a', border: '#4caf50', color: '#4caf50' },
+          error: { bg: '#2a0a0a', border: '#f44336', color: '#f44336' },
+          warning: { bg: '#2a1a0a', border: '#ff6b1a', color: '#ff6b1a' },
+        };
+        const c = colores[t.tipo] || colores.success;
+        return (
+          <div key={t.id} style={{
+            background: c.bg, border: `1px solid ${c.border}`, color: c.color,
+            padding: '12px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: '600',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)', minWidth: '260px', maxWidth: '340px',
+            animation: 'slideIn 0.2s ease',
+          }}>
+            {t.mensaje}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function NotificacionesPanel({ notificaciones, onCerrar, onMarcarLeidas }) {
   return (
@@ -44,10 +70,19 @@ function App() {
   const [trabajos, setTrabajos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [conversacionActiva, setConversacionActiva] = useState(null);
-
   const [notificaciones, setNotificaciones] = useState([]);
   const [mostrarNotif, setMostrarNotif] = useState(false);
   const notifInterval = useRef(null);
+  const toastId = useRef(0);
+
+  // ── TOAST SYSTEM ──
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((mensaje, tipo = 'success') => {
+    const id = ++toastId.current;
+    setToasts(prev => [...prev, { id, mensaje, tipo }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
+  }, []);
 
   const noLeidas = notificaciones.filter((n) => !n.leida).length;
 
@@ -89,10 +124,10 @@ function App() {
         setToken(data.token);
         setUser(data.user);
       } else {
-        alert('Error: ' + data.error);
+        showToast('Error: ' + data.error, 'error');
       }
     } catch (err) {
-      alert('Error de conexión: ' + err.message);
+      showToast('Error de conexión: ' + err.message, 'error');
     }
     setLoading(false);
   };
@@ -112,15 +147,15 @@ function App() {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Solicitud creada exitosamente!');
+        showToast('✅ Solicitud creada exitosamente', 'success');
         setCurrentView('mis');
         fetchMySolicitudes();
         fetchSolicitudes();
       } else {
-        alert('Error: ' + data.error);
+        showToast('Error: ' + data.error, 'error');
       }
     } catch (err) {
-      alert('Error: ' + err.message);
+      showToast('Error: ' + err.message, 'error');
     }
   };
 
@@ -150,11 +185,10 @@ function App() {
       const data = await res.json();
       if (data.success) setConversacionActiva(data.data);
     } catch (err) {
-      alert('Error: ' + err.message);
+      showToast('Error: ' + err.message, 'error');
     }
   };
 
-  // ── NUEVO ──
   const handleUserUpdate = (datosNuevos) => {
     const updatedUser = { ...user, ...datosNuevos };
     setUser(updatedUser);
@@ -237,15 +271,21 @@ function App() {
     </div>
   );
 
-  if (!token) return <Login onLogin={handleLogin} loading={loading} />;
+  if (!token) return (
+    <>
+      <ToastContainer toasts={toasts} />
+      <Login onLogin={handleLogin} loading={loading} />
+    </>
+  );
 
   if (user?.rol === 'admin') {
-    return <Admin user={user} onLogout={handleLogout} />;
+    return <Admin user={user} onLogout={handleLogout} showToast={showToast} />;
   }
 
   if (conversacionActiva) {
     return (
       <>
+        <ToastContainer toasts={toasts} />
         <Campanita />
         {mostrarNotif && <NotificacionesPanel notificaciones={notificaciones} onCerrar={() => setMostrarNotif(false)} onMarcarLeidas={marcarLeidas} />}
         <Chat conversacion={conversacionActiva} user={user} onBack={() => setConversacionActiva(null)} />
@@ -255,23 +295,24 @@ function App() {
 
   return (
     <>
+      <ToastContainer toasts={toasts} />
       <Campanita />
       {mostrarNotif && <NotificacionesPanel notificaciones={notificaciones} onCerrar={() => setMostrarNotif(false)} onMarcarLeidas={marcarLeidas} />}
 
       {currentView === 'home' && (
-        <Home solicitudes={solicitudes} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onCotizar={handleCotizar} currentView={currentView} />
+        <Home solicitudes={solicitudes} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onCotizar={handleCotizar} currentView={currentView} showToast={showToast} />
       )}
       {currentView === 'crear' && (
-        <CrearSolicitud onChangeView={setCurrentView} onCreateSolicitud={handleCreateSolicitud} onLogout={handleLogout} user={user} />
+        <CrearSolicitud onChangeView={setCurrentView} onCreateSolicitud={handleCreateSolicitud} onLogout={handleLogout} user={user} showToast={showToast} />
       )}
       {currentView === 'mis' && (
-        <MisSolicitudes mySolicitudes={mySolicitudes} onChangeView={setCurrentView} onLogout={handleLogout} user={user} onAbrirChat={handleAbrirChat} currentView={currentView} />
+        <MisSolicitudes mySolicitudes={mySolicitudes} onChangeView={setCurrentView} onLogout={handleLogout} user={user} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} />
       )}
       {currentView === 'trabajos' && (
-        <MisTrabajos trabajos={trabajos} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onAbrirChat={handleAbrirChat} currentView={currentView} />
+        <MisTrabajos trabajos={trabajos} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} />
       )}
       {currentView === 'perfil' && (
-        <Perfil user={user} onChangeView={setCurrentView} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
+        <Perfil user={user} onChangeView={setCurrentView} onLogout={handleLogout} onUserUpdate={handleUserUpdate} showToast={showToast} />
       )}
     </>
   );

@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
 
-function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat, currentView }) {
+function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat, currentView, showToast }) {
   const pendientes = trabajos.filter((t) => t.estado === 'pendiente');
   const aceptadas = trabajos.filter((t) => t.estado === 'aceptada');
   const rechazadas = trabajos.filter((t) => t.estado === 'rechazada');
@@ -53,6 +53,9 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     if (!error) {
       setPerfilGuardado(true);
       setTimeout(() => setPerfilGuardado(false), 3000);
+      showToast('✅ Perfil guardado', 'success');
+    } else {
+      showToast('Error al guardar perfil', 'error');
     }
   };
 
@@ -78,10 +81,9 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
       if (updateError) throw updateError;
 
       setFotoPerfil(fotoUrl);
-      setPerfilGuardado(true);
-      setTimeout(() => setPerfilGuardado(false), 3000);
+      showToast('✅ Foto actualizada', 'success');
     } catch (err) {
-      alert('Error al subir foto: ' + err.message);
+      showToast('Error al subir foto: ' + err.message, 'error');
     }
     setSubiendoFotoPerfil(false);
   };
@@ -113,8 +115,9 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
       if (insertError) throw insertError;
       setDescripcion('');
       await cargarFotos();
+      showToast('✅ Foto subida', 'success');
     } catch (err) {
-      alert('Error al subir foto: ' + err.message);
+      showToast('Error al subir foto: ' + err.message, 'error');
     } finally {
       setSubiendo(false);
     }
@@ -125,6 +128,7 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     await supabase.storage.from('trabajos').remove([path]);
     await supabase.from('fotos_trabajos').delete().eq('id', foto.id);
     await cargarFotos();
+    showToast('Foto eliminada', 'warning');
   };
 
   const marcarTerminado = async (trabajo) => {
@@ -140,8 +144,9 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
       setTerminados((prev) => ({ ...prev, [trabajo.id]: true }));
+      showToast('✅ Trabajo marcado como terminado', 'success');
     } catch (err) {
-      alert('Error: ' + err.message);
+      showToast('Error: ' + err.message, 'error');
     }
     setMarcandoTerminado((prev) => ({ ...prev, [trabajo.id]: false }));
   };
@@ -180,23 +185,18 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
 
       <div style={styles.content}>
 
-        {/* PERFIL */}
         <h2 style={styles.sectionTitle}>👤 Mi perfil</h2>
         <p style={styles.sectionSub}>Esta información la verán los clientes cuando vean tu perfil</p>
 
         {perfilGuardado && <div style={styles.toast}>✓ Guardado correctamente</div>}
 
-        {/* FOTO DE PERFIL */}
         <div style={styles.fotoPerfilWrap}>
           <div style={styles.fotoPerfilAvatar} onClick={() => fotoperfilRef.current.click()}>
-            {fotoPerfil ? (
-              <img src={fotoPerfil} alt="perfil" style={styles.fotoPerfilImg} />
-            ) : (
-              <span style={styles.fotoPerfilLetra}>{user?.nombre?.[0]?.toUpperCase()}</span>
-            )}
-            <div style={styles.fotoPerfilOverlay}>
-              {subiendoFotoPerfil ? '⏳' : '📷'}
-            </div>
+            {fotoPerfil
+              ? <img src={fotoPerfil} alt="perfil" style={styles.fotoPerfilImg} />
+              : <span style={styles.fotoPerfilLetra}>{user?.nombre?.[0]?.toUpperCase()}</span>
+            }
+            <div style={styles.fotoPerfilOverlay}>{subiendoFotoPerfil ? '⏳' : '📷'}</div>
           </div>
           <div>
             <p style={{ color: '#fff', fontWeight: '600', margin: '0 0 4px 0' }}>{user?.nombre}</p>
@@ -211,50 +211,33 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         <div style={styles.perfilBox}>
           <div style={styles.field}>
             <label style={styles.fieldLabel}>Bio / Presentación</label>
-            <textarea
-              style={styles.fieldTextarea}
-              placeholder="Ej: Soy técnico metalúrgico con 8 años de experiencia en fabricación de cocinas y hornos industriales..."
-              value={perfil.bio}
-              onChange={(e) => setPerfil({ ...perfil, bio: e.target.value })}
-              rows={3}
-            />
+            <textarea style={styles.fieldTextarea}
+              placeholder="Ej: Soy técnico metalúrgico con 8 años de experiencia..."
+              value={perfil.bio} onChange={(e) => setPerfil({ ...perfil, bio: e.target.value })} rows={3} />
           </div>
           <div style={styles.field}>
             <label style={styles.fieldLabel}>Servicios que ofreces</label>
-            <textarea
-              style={styles.fieldTextarea}
-              placeholder="Ej: Fabricación de hornos artesanales, instalación de cocinas mejoradas, soldadura en general..."
-              value={perfil.servicios}
-              onChange={(e) => setPerfil({ ...perfil, servicios: e.target.value })}
-              rows={3}
-            />
+            <textarea style={styles.fieldTextarea}
+              placeholder="Ej: Fabricación de hornos artesanales, soldadura..."
+              value={perfil.servicios} onChange={(e) => setPerfil({ ...perfil, servicios: e.target.value })} rows={3} />
           </div>
           <div style={styles.field}>
             <label style={styles.fieldLabel}>Descripción corta (aparece en tu tarjeta)</label>
-            <input
-              style={styles.fieldInput}
+            <input style={styles.fieldInput}
               placeholder="Ej: Especialista en hornos y metalurgia — Huancayo"
-              value={perfil.descripcion_perfil}
-              onChange={(e) => setPerfil({ ...perfil, descripcion_perfil: e.target.value })}
-            />
+              value={perfil.descripcion_perfil} onChange={(e) => setPerfil({ ...perfil, descripcion_perfil: e.target.value })} />
           </div>
           <button style={styles.guardarBtn} onClick={guardarPerfil} disabled={guardandoPerfil}>
             {guardandoPerfil ? 'Guardando...' : '💾 Guardar perfil'}
           </button>
         </div>
 
-        {/* PORTAFOLIO */}
         <h2 style={{ ...styles.sectionTitle, marginTop: '40px' }}>📸 Mi portafolio</h2>
         <p style={styles.sectionSub}>{fotos.length} fotos subidas</p>
 
         <div style={styles.uploadBox}>
-          <input
-            type="text"
-            placeholder="Descripción (opcional)"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            style={styles.inputDesc}
-          />
+          <input type="text" placeholder="Descripción (opcional)" value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)} style={styles.inputDesc} />
           <input type="file" accept="image/*" ref={fileInputRef} onChange={subirFoto} style={{ display: 'none' }} />
           <button style={styles.uploadBtn} onClick={() => fileInputRef.current.click()} disabled={subiendo}>
             {subiendo ? '⏳ Subiendo...' : '+ Subir foto'}
@@ -275,7 +258,6 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
           <div style={styles.emptyFotos}><p>No has subido fotos aún</p></div>
         )}
 
-        {/* COTIZACIONES */}
         <h2 style={{ ...styles.sectionTitle, marginTop: '40px' }}>Mis cotizaciones</h2>
         <p style={styles.sectionSub}>
           {trabajos.length} total — {pendientes.length} pendientes, {aceptadas.length} aceptadas, {rechazadas.length} rechazadas
@@ -314,11 +296,8 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
                       {yaTerminado ? (
                         <div style={styles.terminadoBadge}>✓ Trabajo marcado como terminado</div>
                       ) : (
-                        <button
-                          style={{ ...styles.terminarBtn, opacity: marcandoTerminado[trabajo.id] ? 0.6 : 1 }}
-                          onClick={() => marcarTerminado(trabajo)}
-                          disabled={marcandoTerminado[trabajo.id]}
-                        >
+                        <button style={{ ...styles.terminarBtn, opacity: marcandoTerminado[trabajo.id] ? 0.6 : 1 }}
+                          onClick={() => marcarTerminado(trabajo)} disabled={marcandoTerminado[trabajo.id]}>
                           {marcandoTerminado[trabajo.id] ? 'Procesando...' : '✅ Marcar como terminado'}
                         </button>
                       )}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 const API = 'https://forjanova-api-backend.onrender.com/api/admin';
 
-function Admin({ user, onLogout }) {
+function Admin({ user, onLogout, showToast }) {
   const [stats, setStats] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
@@ -45,16 +45,16 @@ function Admin({ user, onLogout }) {
   };
 
   const cambiarRol = async (userId, nuevoRol) => {
-    if (!window.confirm(`¿Cambiar rol a "${nuevoRol}"?`)) return;
     try {
       const res = await fetch(`${API}/usuarios/${userId}/rol`, {
         method: 'PUT', headers,
         body: JSON.stringify({ rol: nuevoRol }),
       });
       const data = await res.json();
-      if (!data.success) { alert('Error: ' + data.error); return; }
+      if (!data.success) { showToast('Error: ' + data.error, 'error'); return; }
       setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: nuevoRol } : u));
-    } catch { alert('Error cambiando rol'); }
+      showToast(`✅ Rol cambiado a "${nuevoRol}"`, 'success');
+    } catch { showToast('Error cambiando rol', 'error'); }
   };
 
   const toggleDisponibilidad = async (userId, valorActual) => {
@@ -65,32 +65,33 @@ function Admin({ user, onLogout }) {
         body: JSON.stringify({ disponible: nuevo }),
       });
       const data = await res.json();
-      if (!data.success) { alert('Error: ' + data.error); return; }
+      if (!data.success) { showToast('Error: ' + data.error, 'error'); return; }
       setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, disponible: nuevo } : u));
-    } catch { alert('Error cambiando disponibilidad'); }
+      showToast(nuevo ? '🟢 Técnico marcado disponible' : '🔴 Técnico marcado no disponible', 'success');
+    } catch { showToast('Error cambiando disponibilidad', 'error'); }
   };
 
   const cambiarEstadoSolicitud = async (solId, estado) => {
-    if (!window.confirm(`¿Cambiar estado a "${estado}"?`)) return;
     try {
       const res = await fetch(`${API}/solicitudes/${solId}/estado`, {
         method: 'PUT', headers,
         body: JSON.stringify({ estado }),
       });
       const data = await res.json();
-      if (!data.success) { alert('Error: ' + data.error); return; }
+      if (!data.success) { showToast('Error: ' + data.error, 'error'); return; }
       setSolicitudes(prev => prev.map(s => s.id === solId ? { ...s, estado } : s));
-    } catch { alert('Error cambiando estado'); }
+      showToast(`✅ Estado cambiado a "${estado}"`, 'success');
+    } catch { showToast('Error cambiando estado', 'error'); }
   };
 
   const eliminarSolicitud = async (solId) => {
-    if (!window.confirm('¿Eliminar esta solicitud? Esta acción no se puede deshacer.')) return;
     try {
       const res = await fetch(`${API}/solicitudes/${solId}`, { method: 'DELETE', headers });
       const data = await res.json();
-      if (!data.success) { alert('Error: ' + data.error); return; }
+      if (!data.success) { showToast('Error: ' + data.error, 'error'); return; }
       setSolicitudes(prev => prev.filter(s => s.id !== solId));
-    } catch { alert('Error eliminando solicitud'); }
+      showToast('Solicitud eliminada', 'warning');
+    } catch { showToast('Error eliminando solicitud', 'error'); }
   };
 
   const usuariosFiltrados = usuarios.filter(u => {
