@@ -11,6 +11,11 @@ function Admin({ user, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [buscarUsuario, setBuscarUsuario] = useState('');
+  const [filtroRol, setFiltroRol] = useState('todos');
+  const [buscarSolicitud, setBuscarSolicitud] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
@@ -43,35 +48,39 @@ function Admin({ user, onLogout }) {
     if (!window.confirm(`¿Cambiar rol a "${nuevoRol}"?`)) return;
     try {
       const res = await fetch(`${API}/usuarios/${userId}/rol`, {
-        method: 'PUT',
-        headers,
+        method: 'PUT', headers,
         body: JSON.stringify({ rol: nuevoRol }),
       });
       const data = await res.json();
-      if (!data.success) {
-        alert('Error: ' + data.error);
-        return;
-      }
+      if (!data.success) { alert('Error: ' + data.error); return; }
       setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, rol: nuevoRol } : u));
-    } catch (err) {
-      alert('Error cambiando rol');
-    }
+    } catch { alert('Error cambiando rol'); }
+  };
+
+  const toggleDisponibilidad = async (userId, valorActual) => {
+    const nuevo = !valorActual;
+    try {
+      const res = await fetch(`${API}/usuarios/${userId}/disponibilidad`, {
+        method: 'PUT', headers,
+        body: JSON.stringify({ disponible: nuevo }),
+      });
+      const data = await res.json();
+      if (!data.success) { alert('Error: ' + data.error); return; }
+      setUsuarios(prev => prev.map(u => u.id === userId ? { ...u, disponible: nuevo } : u));
+    } catch { alert('Error cambiando disponibilidad'); }
   };
 
   const cambiarEstadoSolicitud = async (solId, estado) => {
     if (!window.confirm(`¿Cambiar estado a "${estado}"?`)) return;
     try {
       const res = await fetch(`${API}/solicitudes/${solId}/estado`, {
-        method: 'PUT',
-        headers,
+        method: 'PUT', headers,
         body: JSON.stringify({ estado }),
       });
       const data = await res.json();
       if (!data.success) { alert('Error: ' + data.error); return; }
       setSolicitudes(prev => prev.map(s => s.id === solId ? { ...s, estado } : s));
-    } catch (err) {
-      alert('Error cambiando estado');
-    }
+    } catch { alert('Error cambiando estado'); }
   };
 
   const eliminarSolicitud = async (solId) => {
@@ -81,10 +90,29 @@ function Admin({ user, onLogout }) {
       const data = await res.json();
       if (!data.success) { alert('Error: ' + data.error); return; }
       setSolicitudes(prev => prev.filter(s => s.id !== solId));
-    } catch (err) {
-      alert('Error eliminando solicitud');
-    }
+    } catch { alert('Error eliminando solicitud'); }
   };
+
+  const usuariosFiltrados = usuarios.filter(u => {
+    const texto = buscarUsuario.toLowerCase();
+    const coincideTexto = !texto ||
+      u.nombre?.toLowerCase().includes(texto) ||
+      u.email?.toLowerCase().includes(texto) ||
+      u.ciudad?.toLowerCase().includes(texto);
+    const coincideRol = filtroRol === 'todos' || u.rol === filtroRol;
+    return coincideTexto && coincideRol;
+  });
+
+  const solicitudesFiltradas = solicitudes.filter(s => {
+    const texto = buscarSolicitud.toLowerCase();
+    const coincideTexto = !texto ||
+      s.titulo?.toLowerCase().includes(texto) ||
+      s.descripcion?.toLowerCase().includes(texto) ||
+      s.ubicacion?.toLowerCase().includes(texto) ||
+      s.usuarios?.nombre?.toLowerCase().includes(texto);
+    const coincideEstado = filtroEstado === 'todos' || s.estado === filtroEstado;
+    return coincideTexto && coincideEstado;
+  });
 
   const rolColor = (rol) => {
     if (rol === 'admin') return { bg: '#2a0a2a', color: '#e040fb' };
@@ -133,7 +161,6 @@ function Admin({ user, onLogout }) {
           </div>
         ) : (
           <>
-            {/* STATS */}
             {tab === 'stats' && stats && (
               <div>
                 <h2 style={s.title}>📊 Resumen general</h2>
@@ -146,22 +173,35 @@ function Admin({ user, onLogout }) {
                   <div style={s.statCard}><p style={{ ...s.statNum, color: '#7c7cff' }}>{stats.completadas}</p><p style={s.statLabel}>Completadas</p></div>
                   <div style={s.statCard}><p style={{ ...s.statNum, color: '#ffa726' }}>{stats.calificaciones}</p><p style={s.statLabel}>Calificaciones</p></div>
                   <div style={s.statCard}><p style={{ ...s.statNum, color: '#ffa726' }}>{stats.promedio_estrellas}★</p><p style={s.statLabel}>Promedio estrellas</p></div>
-                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#ff6b1a', fontSize: '24px' }}>S/. {stats.monto_total}</p><p style={s.statLabel}>Monto total en solicitudes</p></div>
+                  <div style={s.statCard}><p style={{ ...s.statNum, color: '#ff6b1a', fontSize: '24px' }}>S/. {stats.monto_total}</p><p style={s.statLabel}>Monto total</p></div>
                 </div>
               </div>
             )}
 
-            {/* USUARIOS */}
             {tab === 'usuarios' && (
               <div>
-                <h2 style={s.title}>👥 Usuarios ({usuarios.length})</h2>
-                {usuarios.length === 0 ? (
-                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>No hay usuarios registrados</p>
+                <h2 style={s.title}>👥 Usuarios ({usuariosFiltrados.length}/{usuarios.length})</h2>
+                <div style={s.filterBar}>
+                  <input style={s.searchInput} type="text" placeholder="🔍 Buscar por nombre, email o ciudad..."
+                    value={buscarUsuario} onChange={e => setBuscarUsuario(e.target.value)} />
+                  <select style={s.filterSelect} value={filtroRol} onChange={e => setFiltroRol(e.target.value)}>
+                    <option value="todos">Todos los roles</option>
+                    <option value="cliente">Cliente</option>
+                    <option value="tecnico">Técnico</option>
+                    <option value="ambos">Ambos</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                {usuariosFiltrados.length === 0 ? (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>
+                    {usuarios.length === 0 ? 'No hay usuarios registrados' : 'Sin resultados para esa búsqueda'}
+                  </p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {usuarios.map((u) => {
+                    {usuariosFiltrados.map((u) => {
                       const rc = rolColor(u.rol);
                       const esMiUsuario = u.id === user?.id;
+                      const esTecnico = u.rol === 'tecnico' || u.rol === 'ambos';
                       return (
                         <div key={u.id} style={{ ...s.card, ...(esMiUsuario ? { border: '1px solid #e040fb' } : {}) }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -177,7 +217,13 @@ function Admin({ user, onLogout }) {
                                 {u.ciudad && <p style={{ fontSize: '11px', color: '#444', margin: '2px 0 0 0' }}>📍 {u.ciudad}</p>}
                               </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                              {esTecnico && !esMiUsuario && (
+                                <button onClick={() => toggleDisponibilidad(u.id, u.disponible)}
+                                  style={{ ...s.toggleBtn, background: u.disponible ? '#0a2a0a' : '#2a0a0a', color: u.disponible ? '#4caf50' : '#f44336', borderColor: u.disponible ? '#4caf50' : '#f44336' }}>
+                                  {u.disponible ? '🟢 Disponible' : '🔴 No disponible'}
+                                </button>
+                              )}
                               <span style={{ ...s.rolBadge, background: rc.bg, color: rc.color }}>{u.rol}</span>
                               {!esMiUsuario && (
                                 <select style={s.rolSelect} value={u.rol} onChange={(e) => cambiarRol(u.id, e.target.value)}>
@@ -201,15 +247,27 @@ function Admin({ user, onLogout }) {
               </div>
             )}
 
-            {/* SOLICITUDES */}
             {tab === 'solicitudes' && (
               <div>
-                <h2 style={s.title}>📋 Solicitudes ({solicitudes.length})</h2>
-                {solicitudes.length === 0 ? (
-                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>No hay solicitudes</p>
+                <h2 style={s.title}>📋 Solicitudes ({solicitudesFiltradas.length}/{solicitudes.length})</h2>
+                <div style={s.filterBar}>
+                  <input style={s.searchInput} type="text" placeholder="🔍 Buscar por título, descripción, ubicación o cliente..."
+                    value={buscarSolicitud} onChange={e => setBuscarSolicitud(e.target.value)} />
+                  <select style={s.filterSelect} value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
+                    <option value="todos">Todos los estados</option>
+                    <option value="abierta">Abierta</option>
+                    <option value="aceptada">Aceptada</option>
+                    <option value="completada">Completada</option>
+                    <option value="cancelada">Cancelada</option>
+                  </select>
+                </div>
+                {solicitudesFiltradas.length === 0 ? (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>
+                    {solicitudes.length === 0 ? 'No hay solicitudes' : 'Sin resultados para esa búsqueda'}
+                  </p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {solicitudes.map((sol) => (
+                    {solicitudesFiltradas.map((sol) => (
                       <div key={sol.id} style={s.card}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                           <span style={{ fontSize: '12px', fontWeight: '600', color: estadoColor(sol.estado) }}>● {sol.estado}</span>
@@ -240,7 +298,6 @@ function Admin({ user, onLogout }) {
               </div>
             )}
 
-            {/* CALIFICACIONES */}
             {tab === 'calificaciones' && (
               <div>
                 <h2 style={s.title}>⭐ Calificaciones ({calificaciones.length})</h2>
@@ -290,6 +347,10 @@ const s = {
   rolSelect: { background: '#111', border: '1px solid #333', color: '#aaa', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' },
   tag: { fontSize: '11px', color: '#666', background: '#111', padding: '3px 8px', borderRadius: '20px', border: '1px solid #2a2a2a' },
   actionBtn: { background: 'transparent', border: '1px solid', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer' },
+  filterBar: { display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' },
+  searchInput: { flex: 1, minWidth: '200px', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', outline: 'none' },
+  filterSelect: { background: '#111', border: '1px solid #333', color: '#aaa', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', cursor: 'pointer' },
+  toggleBtn: { border: '1px solid', borderRadius: '20px', padding: '3px 12px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' },
 };
 
 export default Admin;
