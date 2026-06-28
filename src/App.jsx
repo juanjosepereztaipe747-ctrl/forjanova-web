@@ -6,9 +6,11 @@ import MisSolicitudes from './components/MisSolicitudes';
 import MisTrabajos from './components/MisTrabajos';
 import Chat from './components/Chat';
 import Admin from './components/Admin';
+import Perfil from './components/Perfil';
 import './App.css';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
+
 function NotificacionesPanel({ notificaciones, onCerrar, onMarcarLeidas }) {
   return (
     <div style={estilosNotif.overlay} onClick={onCerrar}>
@@ -152,6 +154,13 @@ function App() {
     }
   };
 
+  // ── NUEVO ──
+  const handleUserUpdate = (datosNuevos) => {
+    const updatedUser = { ...user, ...datosNuevos };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   const fetchSolicitudes = async () => {
     try {
       const res = await fetch(`${API}/solicitudes`);
@@ -230,7 +239,6 @@ function App() {
 
   if (!token) return <Login onLogin={handleLogin} loading={loading} />;
 
-  // Panel admin — acceso exclusivo
   if (user?.rol === 'admin') {
     return <Admin user={user} onLogout={handleLogout} />;
   }
@@ -261,6 +269,9 @@ function App() {
       )}
       {currentView === 'trabajos' && (
         <MisTrabajos trabajos={trabajos} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onAbrirChat={handleAbrirChat} currentView={currentView} />
+      )}
+      {currentView === 'perfil' && (
+        <Perfil user={user} onChangeView={setCurrentView} onLogout={handleLogout} onUserUpdate={handleUserUpdate} />
       )}
     </>
   );
@@ -304,4 +315,4 @@ const estilosNotif = {
   itemFecha: { fontSize: '11px', color: '#444', margin: 0 },
 };
 
-export default App;  
+export default App;

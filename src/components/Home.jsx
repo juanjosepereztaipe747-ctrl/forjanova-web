@@ -218,6 +218,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
+      <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
       </div>
 
       <div style={styles.tabsWrap}>
