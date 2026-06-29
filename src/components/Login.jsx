@@ -158,7 +158,7 @@ function Login({ onLogin, loading }) {
                   <option value="Limpieza">Limpieza</option>
                   <option value="Carpintería">Carpintería</option>
                   <option value="Metalurgia">Metalurgia</option>
-                  <option value="Otro">Otro</option>
+                  <option value="Otros servicios">Otros servicios (limpieza, artesanía, hornos, etc.)</option>
                 </select>
 
                 <label style={styles.label}>Ciudad</label>
