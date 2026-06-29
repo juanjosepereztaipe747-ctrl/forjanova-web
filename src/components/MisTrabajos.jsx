@@ -24,12 +24,39 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
   const [marcandoTerminado, setMarcandoTerminado] = useState({});
   const [terminados, setTerminados] = useState({});
 
+  const [stats, setStats] = useState({ calificaciones: 0, promedio: 0, trabajosCompletados: 0 });
+
   useEffect(() => {
     if (user) {
       cargarFotos();
       cargarPerfil();
+      cargarStats();
     }
   }, [user]);
+
+  const cargarStats = async () => {
+    const { data } = await supabase
+      .from('calificaciones')
+      .select('estrellas')
+      .eq('tecnico_id', user.id);
+
+    const { data: userData } = await supabase
+      .from('usuarios')
+      .select('trabajos_completados')
+      .eq('id', user.id)
+      .single();
+
+    if (data && data.length > 0) {
+      const promedio = (data.reduce((acc, c) => acc + c.estrellas, 0) / data.length).toFixed(1);
+      setStats({
+        calificaciones: data.length,
+        promedio: parseFloat(promedio),
+        trabajosCompletados: userData?.trabajos_completados || 0,
+      });
+    } else {
+      setStats({ calificaciones: 0, promedio: 0, trabajosCompletados: userData?.trabajos_completados || 0 });
+    }
+  };
 
   const cargarPerfil = async () => {
     const { data } = await supabase
@@ -70,16 +97,13 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         .from('perfiles')
         .upload(nombreArchivo, archivo, { upsert: true });
       if (uploadError) throw uploadError;
-
       const { data: urlData } = supabase.storage.from('perfiles').getPublicUrl(nombreArchivo);
       const fotoUrl = urlData.publicUrl;
-
       const { error: updateError } = await supabase
         .from('usuarios')
         .update({ foto_perfil: fotoUrl })
         .eq('id', user.id);
       if (updateError) throw updateError;
-
       setFotoPerfil(fotoUrl);
       showToast('✅ Foto actualizada', 'success');
     } catch (err) {
@@ -157,6 +181,8 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     return { label: '● Pendiente', style: styles.badgePendiente };
   };
 
+  const ingresosTotal = aceptadas.reduce((acc, t) => acc + (parseFloat(t.precio) || 0), 0);
+
   return (
     <div style={styles.bg}>
       <div style={styles.header}>
@@ -185,7 +211,38 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
 
       <div style={styles.content}>
 
-        <h2 style={styles.sectionTitle}>👤 Mi perfil</h2>
+        <h2 style={styles.sectionTitle}>📊 Mis estadísticas</h2>
+        <p style={styles.sectionSub}>Resumen de tu actividad en Forjanova</p>
+        <div style={styles.statsGrid}>
+          <div style={styles.statCard}>
+            <span style={{ ...styles.statNum, color: '#ff6b1a' }}>{trabajos.length}</span>
+            <span style={styles.statLabel}>Cotizaciones enviadas</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={{ ...styles.statNum, color: '#42a5f5' }}>{aceptadas.length}</span>
+            <span style={styles.statLabel}>Aceptadas</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={{ ...styles.statNum, color: '#ffa726' }}>{pendientes.length}</span>
+            <span style={styles.statLabel}>Pendientes</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={{ ...styles.statNum, color: '#4caf50' }}>{stats.trabajosCompletados}</span>
+            <span style={styles.statLabel}>Completados</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={{ ...styles.statNum, color: '#ff6b1a' }}>S/. {ingresosTotal.toLocaleString()}</span>
+            <span style={styles.statLabel}>Ingresos totales</span>
+          </div>
+          <div style={styles.statCard}>
+            <span style={{ ...styles.statNum, color: '#ffd700' }}>
+              {stats.promedio > 0 ? `★ ${stats.promedio}` : '—'}
+            </span>
+            <span style={styles.statLabel}>{stats.calificaciones} reseña{stats.calificaciones !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+
+        <h2 style={{ ...styles.sectionTitle, marginTop: '40px' }}>👤 Mi perfil</h2>
         <p style={styles.sectionSub}>Esta información la verán los clientes cuando vean tu perfil</p>
 
         {perfilGuardado && <div style={styles.toast}>✓ Guardado correctamente</div>}
@@ -338,6 +395,10 @@ const styles = {
   content: { padding: '24px 20px', maxWidth: '800px', margin: '0 auto' },
   sectionTitle: { fontSize: '20px', fontWeight: '600', margin: '0 0 4px 0', color: '#fff' },
   sectionSub: { fontSize: '13px', color: '#555', margin: '0 0 20px 0' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '8px' },
+  statCard: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' },
+  statNum: { fontSize: '22px', fontWeight: '700' },
+  statLabel: { fontSize: '11px', color: '#555', textAlign: 'center' },
   toast: { background: '#1a3a1a', border: '1px solid #4caf50', color: '#4caf50', padding: '10px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '16px' },
   fotoPerfilWrap: { display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px', padding: '16px', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px' },
   fotoPerfilAvatar: { position: 'relative', width: '80px', height: '80px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0 },
