@@ -12,7 +12,7 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
   const handleSubmit = async () => {
     if (!precio || !mensaje) { setError('Precio y mensaje son obligatorios.'); return; }
     setLoading(true); setError('');
-    const result = await onSubmit(sol.id, { precio: parseFloat(precio), mensaje, tiempo_estimado_dias: dias ? parseInt(dias) : undefined });
+    const result = await onSubmit(sol.id, { precio: parseFloat(precio), mensaje, tiempo_estimado_dias: dias || undefined });
     setLoading(false);
     if (result.success) onClose();
     else setError(result.error || 'Error al enviar cotización.');
@@ -36,7 +36,7 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Tiempo estimado (días)</label>
-            <input style={styles.input} type="number" placeholder="Ej: 3" value={dias} onChange={(e) => setDias(e.target.value)} />
+            <input style={styles.input} type="text" placeholder="Ej: 3 días, esta semana, urgente" value={dias} onChange={(e) => setDias(e.target.value)} />
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Mensaje al cliente*</label>
@@ -161,6 +161,8 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   const [toast, setToast] = useState('');
   const [vistaActiva, setVistaActiva] = useState('solicitudes');
   const [tecnicos, setTecnicos] = useState([]);
+  const [busquedaTecnico, setBusquedaTecnico] = useState('');
+  const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
 
   const solicitudesAbiertas = solicitudes.filter((s) => s.estado === 'abierta');
   const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
@@ -185,6 +187,18 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
     }
     return result;
   };
+
+  const tecnicosFiltrados = tecnicos.filter(t => {
+    const texto = busquedaTecnico.toLowerCase();
+    const coincideTexto = !texto ||
+      t.nombre?.toLowerCase().includes(texto) ||
+      t.especialidad?.toLowerCase().includes(texto) ||
+      t.ciudad?.toLowerCase().includes(texto);
+    const coincideEsp = !filtroEspecialidad || t.especialidad === filtroEspecialidad;
+    return coincideTexto && coincideEsp;
+  });
+
+  const especialidadesUnicas = [...new Set(tecnicos.map(t => t.especialidad).filter(Boolean))];
 
   return (
     <div style={styles.bg}>
@@ -237,10 +251,28 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
         {vistaActiva === 'tecnicos' && (
           <>
             <h2 style={styles.sectionTitle}>Técnicos disponibles</h2>
-            <p style={styles.sectionSub}>{tecnicos.length} técnicos registrados</p>
-            {tecnicos.length > 0 ? (
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <input
+                style={{ ...styles.input, flex: 1, minWidth: '200px' }}
+                placeholder="🔍 Buscar por nombre, especialidad o ciudad..."
+                value={busquedaTecnico}
+                onChange={(e) => setBusquedaTecnico(e.target.value)}
+              />
+              <select
+                style={{ ...styles.input, minWidth: '180px', cursor: 'pointer' }}
+                value={filtroEspecialidad}
+                onChange={(e) => setFiltroEspecialidad(e.target.value)}
+              >
+                <option value="">Todas las especialidades</option>
+                {especialidadesUnicas.map(esp => (
+                  <option key={esp} value={esp}>{esp}</option>
+                ))}
+              </select>
+            </div>
+            <p style={styles.sectionSub}>{tecnicosFiltrados.length} técnico{tecnicosFiltrados.length !== 1 ? 's' : ''} encontrado{tecnicosFiltrados.length !== 1 ? 's' : ''}</p>
+            {tecnicosFiltrados.length > 0 ? (
               <div style={styles.tecnicosGrid}>
-                {tecnicos.map((tec) => (
+                {tecnicosFiltrados.map((tec) => (
                   <div key={tec.id} style={styles.tecnicoCard} onClick={() => setModalTecnico(tec)}>
                     <div style={styles.tecnicoAvatarSmall}>
                       {tec.foto_perfil
@@ -267,8 +299,9 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
               </div>
             ) : (
               <div style={styles.empty}>
-                <p style={styles.emptyIcon}>👷</p>
-                <p style={styles.emptyText}>No hay técnicos registrados aún</p>
+                <p style={styles.emptyIcon}>🔍</p>
+                <p style={styles.emptyText}>No se encontraron técnicos</p>
+                <p style={styles.emptySub}>Intenta con otro término o especialidad</p>
               </div>
             )}
           </>
