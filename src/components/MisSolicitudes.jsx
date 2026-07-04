@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
+const WHATSAPP_NUM = '51929336337';
 
 function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast }) {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
@@ -17,6 +18,11 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
   const [califEnviada, setCalifEnviada] = useState({});
 
   const authToken = localStorage.getItem('token');
+
+  const linkWhatsapp = (sol) => {
+    const texto = 'Hola, publique una solicitud urgente en Forjanova Servicios Ya: "' + (sol.titulo || sol.descripcion?.slice(0, 40)) + '" y necesito ayuda para encontrar tecnico.';
+    return `https://wa.me/${WHATSAPP_NUM}?text=${encodeURIComponent(texto)}`;
+  };
 
   const verCotizaciones = async (sol) => {
     setSolicitudSeleccionada(sol);
@@ -143,7 +149,6 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
   return (
     <div style={styles.bg}>
 
-      {/* Modal calificación */}
       {modalCalif && (
         <div style={styles.overlay} onClick={() => setModalCalif(null)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -197,7 +202,6 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
         </div>
       )}
 
-      {/* Modal cotizaciones */}
       {solicitudSeleccionada && (
         <div style={styles.overlay} onClick={() => setSolicitudSeleccionada(null)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -214,7 +218,12 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
               ) : cotizaciones.length === 0 ? (
                 <div style={styles.noCotizaciones}>
                   <p style={{ fontSize: '32px', margin: '0 0 8px 0' }}>📭</p>
-                  <p style={{ color: '#555', fontSize: '14px', margin: 0 }}>Aún no hay cotizaciones</p>
+                  <p style={{ color: '#555', fontSize: '14px', margin: '0 0 16px 0' }}>Aún no hay cotizaciones</p>
+                  {solicitudSeleccionada.urgente ? (
+                    <a href={linkWhatsapp(solicitudSeleccionada)} target="_blank" rel="noopener noreferrer" style={styles.whatsappBtn}>
+                      💬 Escribir a Forjanova por WhatsApp
+                    </a>
+                  ) : null}
                 </div>
               ) : (
                 cotizaciones.map((cot) => (
@@ -278,10 +287,14 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
             {mySolicitudes.map((sol) => {
               const ec = estadoColor(sol.estado);
               const yaCalificada = califEnviada[sol.id];
+              const mostrarWhatsapp = sol.urgente && sol.estado === 'abierta';
               return (
-                <div key={sol.id} style={styles.card}>
+                <div key={sol.id} style={{ ...styles.card, ...(sol.urgente ? styles.cardUrgente : {}) }}>
                   <div style={styles.cardHeader}>
-                    <span style={{ ...styles.badge, background: ec.bg, color: ec.color }}>● {sol.estado}</span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ ...styles.badge, background: ec.bg, color: ec.color }}>● {sol.estado}</span>
+                      {sol.urgente ? <span style={{ ...styles.badge, ...styles.badgeUrgente }}>🔴 Urgente</span> : null}
+                    </div>
                     {sol.presupuesto_max && <span style={styles.presupuesto}>S/. {sol.presupuesto_max}</span>}
                   </div>
                   <h3 style={styles.cardTitle}>{sol.titulo || sol.descripcion?.slice(0, 40)}</h3>
@@ -289,6 +302,11 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                   {sol.ubicacion && <div style={styles.cardInfo}><span style={styles.infoTag}>📍 {sol.ubicacion}</span></div>}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <button style={styles.verCotBtn} onClick={() => verCotizaciones(sol)}>Ver cotizaciones</button>
+                    {mostrarWhatsapp ? (
+                      <a href={linkWhatsapp(sol)} target="_blank" rel="noopener noreferrer" style={styles.whatsappBtn}>
+                        💬 ¿Nadie cotiza aún? Escríbenos por WhatsApp
+                      </a>
+                    ) : null}
                     {sol.estado === 'completada' && (
                       yaCalificada
                         ? <div style={styles.califOkBadge}>✓ Ya calificaste este trabajo</div>
@@ -342,14 +360,17 @@ const styles = {
   sectionSub: { fontSize: '13px', color: '#555', margin: '0 0 20px 0' },
   grid: { display: 'flex', flexDirection: 'column', gap: '12px' },
   card: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px' },
+  cardUrgente: { border: '1px solid #e53935' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
   badge: { fontSize: '12px', fontWeight: '600', padding: '4px 10px', borderRadius: '20px' },
+  badgeUrgente: { background: '#3a1a1a', color: '#ff5252' },
   presupuesto: { fontSize: '16px', fontWeight: '700', color: '#ff6b1a' },
   cardTitle: { fontSize: '16px', fontWeight: '600', color: '#fff', margin: '0 0 6px 0' },
   cardDesc: { fontSize: '14px', color: '#888', margin: '0 0 12px 0', lineHeight: '1.5' },
   cardInfo: { marginBottom: '14px' },
   infoTag: { fontSize: '12px', color: '#666', background: '#111', padding: '4px 10px', borderRadius: '20px', border: '1px solid #2a2a2a' },
   verCotBtn: { width: '100%', background: 'transparent', border: '1px solid #ff6b1a', color: '#ff6b1a', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  whatsappBtn: { display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', background: '#25D366', color: '#0E0B0A', textDecoration: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600' },
   califBtn: { width: '100%', background: '#1a1a3a', border: '1px solid #7c7cff', color: '#7c7cff', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
   califOkBadge: { width: '100%', background: '#1a2a1a', border: '1px solid #4caf50', color: '#4caf50', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', textAlign: 'center' },
   textarea: { width: '100%', background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff', padding: '10px', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box', fontFamily: "'Segoe UI', sans-serif" },

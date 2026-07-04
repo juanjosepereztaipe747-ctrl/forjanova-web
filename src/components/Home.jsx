@@ -159,13 +159,18 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   const [modalSol, setModalSol] = useState(null);
   const [modalTecnico, setModalTecnico] = useState(null);
   const [toast, setToast] = useState('');
-  const [vistaActiva, setVistaActiva] = useState('solicitudes');
+  const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
+  const [vistaActiva, setVistaActiva] = useState(esTecnico ? 'solicitudes' : 'tecnicos');
   const [tecnicos, setTecnicos] = useState([]);
   const [busquedaTecnico, setBusquedaTecnico] = useState('');
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('');
 
   const solicitudesAbiertas = solicitudes.filter((s) => s.estado === 'abierta');
-  const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
+  const solicitudesFiltradas = filtroCategoria
+    ? solicitudesAbiertas.filter((s) => s.servicio === filtroCategoria)
+    : solicitudesAbiertas;
+  const categoriasUnicas = [...new Set(solicitudesAbiertas.map((s) => s.servicio).filter(Boolean))];
 
   useEffect(() => {
     if (vistaActiva === 'tecnicos') cargarTecnicos();
@@ -232,7 +237,9 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
       </div>
 
       <div style={styles.tabsWrap}>
-        <button style={{ ...styles.tabBtn, ...(vistaActiva === 'solicitudes' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('solicitudes')}>📋 Solicitudes</button>
+        {esTecnico && (
+          <button style={{ ...styles.tabBtn, ...(vistaActiva === 'solicitudes' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('solicitudes')}>📋 Solicitudes</button>
+        )}
         {!esTecnico && (
           <button style={{ ...styles.tabBtn, ...(vistaActiva === 'tecnicos' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('tecnicos')}>👷 Técnicos</button>
         )}
@@ -248,7 +255,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
           </div>
         )}
 
-        {vistaActiva === 'tecnicos' && (
+        {vistaActiva === 'tecnicos' && !esTecnico && (
           <>
             <h2 style={styles.sectionTitle}>Técnicos disponibles</h2>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -307,28 +314,40 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
           </>
         )}
 
-        {vistaActiva === 'solicitudes' && (
+        {vistaActiva === 'solicitudes' && esTecnico && (
           <>
             <h2 style={styles.sectionTitle}>Solicitudes disponibles</h2>
-            <p style={styles.sectionSub}>{solicitudesAbiertas.length} solicitudes activas</p>
-            {solicitudesAbiertas.length > 0 ? (
+            <div style={{ marginBottom: '16px' }}>
+              <select
+                style={{ ...styles.input, minWidth: '200px', cursor: 'pointer' }}
+                value={filtroCategoria}
+                onChange={(e) => setFiltroCategoria(e.target.value)}
+              >
+                <option value="">Todas las categorías</option>
+                {categoriasUnicas.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <p style={styles.sectionSub}>{solicitudesFiltradas.length} solicitud{solicitudesFiltradas.length !== 1 ? 'es' : ''} activa{solicitudesFiltradas.length !== 1 ? 's' : ''}</p>
+            {solicitudesFiltradas.length > 0 ? (
               <div style={styles.grid}>
-                {solicitudesAbiertas.map((sol) => (
-                  <div key={sol.id} style={styles.card}>
+                {solicitudesFiltradas.map((sol) => (
+                  <div key={sol.id} style={{ ...styles.card, ...(sol.urgente ? styles.cardUrgente : {}) }}>
                     <div style={styles.cardHeader}>
-                      <span style={{ ...styles.badge, ...styles.badgeAbierta }}>● Abierta</span>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ ...styles.badge, ...styles.badgeAbierta }}>● Abierta</span>
+                        {sol.urgente && <span style={{ ...styles.badge, ...styles.badgeUrgente }}>🔴 Urgente</span>}
+                      </div>
                       {sol.presupuesto_max && <span style={styles.presupuesto}>S/. {sol.presupuesto_max}</span>}
                     </div>
                     <h3 style={styles.cardTitle}>{sol.titulo || sol.descripcion?.slice(0, 40)}</h3>
                     <p style={styles.cardDesc}>{sol.descripcion}</p>
                     <div style={styles.cardInfo}>
+                      {sol.servicio && sol.servicio !== 'general' && <span style={styles.infoTag}>🔧 {sol.servicio}</span>}
                       {sol.ubicacion && <span style={styles.infoTag}>📍 {sol.ubicacion}</span>}
                     </div>
-                    {esTecnico ? (
-                      <button style={styles.cotizarBtn} onClick={() => setModalSol(sol)}>Enviar cotización</button>
-                    ) : (
-                      <div style={styles.clienteNote}>Regístrate como técnico para cotizar</div>
-                    )}
+                    <button style={styles.cotizarBtn} onClick={() => setModalSol(sol)}>Enviar cotización</button>
                   </div>
                 ))}
               </div>
@@ -336,8 +355,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
               <div style={styles.empty}>
                 <p style={styles.emptyIcon}>📋</p>
                 <p style={styles.emptyText}>No hay solicitudes disponibles</p>
-                <p style={styles.emptySub}>Sé el primero en publicar una</p>
-                <button style={styles.emptyBtn} onClick={() => onChangeView('crear')}>+ Crear solicitud</button>
+                <p style={styles.emptySub}>Vuelve a revisar más tarde</p>
               </div>
             )}
           </>
@@ -386,9 +404,11 @@ const styles = {
   sectionSub: { fontSize: '13px', color: '#555', margin: '0 0 20px 0' },
   grid: { display: 'flex', flexDirection: 'column', gap: '12px' },
   card: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px' },
+  cardUrgente: { border: '1px solid #e53935' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' },
   badge: { fontSize: '12px', fontWeight: '600', padding: '4px 10px', borderRadius: '20px' },
   badgeAbierta: { background: '#1a3a1a', color: '#4caf50' },
+  badgeUrgente: { background: '#3a1a1a', color: '#ff5252' },
   presupuesto: { fontSize: '16px', fontWeight: '700', color: '#ff6b1a' },
   cardTitle: { fontSize: '16px', fontWeight: '600', color: '#fff', margin: '0 0 6px 0' },
   cardDesc: { fontSize: '14px', color: '#888', margin: '0 0 12px 0', lineHeight: '1.5' },

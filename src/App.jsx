@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Login from './components/Login';
+import Landing from './components/Landing';
 import Home from './components/Home';
 import CrearSolicitud from './components/CrearSolicitud';
 import MisSolicitudes from './components/MisSolicitudes';
@@ -62,6 +63,7 @@ function NotificacionesPanel({ notificaciones, onCerrar, onMarcarLeidas }) {
 
 function App() {
   const [token, setToken] = useState(null);
+  const [mostrarLanding, setMostrarLanding] = useState(true);
   const [user, setUser] = useState(null);
   const [currentView, setCurrentView] = useState('home');
   const [solicitudes, setSolicitudes] = useState([]);
@@ -222,6 +224,7 @@ function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setCurrentView('home');
+    setMostrarLanding(true);
   };
 
   useEffect(() => {
@@ -256,6 +259,13 @@ function App() {
     </div>
   );
 
+  if (!token && mostrarLanding) return (
+    <>
+      <ToastContainer toasts={toasts} />
+      <Landing onEntrar={() => setMostrarLanding(false)} />
+    </>
+  );
+
   if (!token) return (
     <>
       <ToastContainer toasts={toasts} />
@@ -273,12 +283,10 @@ function App() {
     );
   }
 
-  if (conversacionActiva) {
+ if (conversacionActiva) {
     return (
       <>
         <ToastContainer toasts={toasts} />
-        <Campanita />
-        {mostrarNotif && <NotificacionesPanel notificaciones={notificaciones} onCerrar={() => setMostrarNotif(false)} onMarcarLeidas={marcarLeidas} />}
         <Chat conversacion={conversacionActiva} user={user} onBack={() => setConversacionActiva(null)} />
       </>
     );
@@ -339,7 +347,7 @@ const estilosNotif = {
     padding: '16px', borderBottom: '1px solid #2a2a2a', position: 'sticky', top: 0, background: '#1a1a1a',
   },
   titulo: { fontSize: '15px', fontWeight: '600', color: '#fff' },
-  leerBtn: { background: 'transparent', border: 'none', color: '#ff6b1a', fontSize: '12px', cursor: 'pointer' },
+  leerBtnf: { background: 'transparent', border: 'none', color: '#ff6b1a', fontSize: '12px', cursor: 'pointer' },
   empty: { padding: '32px', textAlign: 'center', color: '#555', fontSize: '13px' },
   item: { padding: '12px 16px', borderBottom: '1px solid #2a2a2a' },
   itemTitulo: { fontSize: '13px', fontWeight: '600', color: '#fff', margin: '0 0 4px 0' },
