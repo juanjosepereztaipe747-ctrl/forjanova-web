@@ -12,6 +12,29 @@ import './App.css';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
 
+function esNavegadorIntegrado() {
+  const ua = navigator.userAgent || '';
+  return /TikTok|musical_ly|Instagram|FBAN|FBAV|Line\/|MicroMessenger/i.test(ua);
+}
+
+function BannerNavegadorIntegrado() {
+  const [visible, setVisible] = useState(() => esNavegadorIntegrado());
+  if (!visible) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000,
+      background: '#2a1a0a', borderBottom: '1px solid #ff6b1a', color: '#ffb74d',
+      padding: '10px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '10px',
+      fontFamily: "'Segoe UI', sans-serif",
+    }}>
+      <span style={{ flex: 1 }}>
+        ⚠️ Estás usando el navegador integrado de otra app. Para subir fotos, abrí este sitio en Chrome o Safari (tocá los ⋯ o mantené presionado el link y elegí "Abrir en el navegador").
+      </span>
+      <button onClick={() => setVisible(false)} style={{ background: 'transparent', border: 'none', color: '#ffb74d', fontSize: '16px', cursor: 'pointer', flexShrink: 0 }}>✕</button>
+    </div>
+  );
+}
+
 function ToastContainer({ toasts }) {
   return (
     <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -261,6 +284,7 @@ function App() {
 
   if (!token && mostrarLanding) return (
     <>
+      <BannerNavegadorIntegrado />
       <ToastContainer toasts={toasts} />
       <Landing onEntrar={() => setMostrarLanding(false)} />
     </>
@@ -268,6 +292,7 @@ function App() {
 
   if (!token) return (
     <>
+      <BannerNavegadorIntegrado />
       <ToastContainer toasts={toasts} />
       <Login onLogin={handleLogin} loading={loading} />
     </>
@@ -277,6 +302,7 @@ function App() {
   if (user?.rol === 'admin') {
     return (
       <>
+        <BannerNavegadorIntegrado />
         <ToastContainer toasts={toasts} />
         <Admin user={user} onLogout={handleLogout} showToast={showToast} />
       </>
@@ -286,6 +312,7 @@ function App() {
  if (conversacionActiva) {
     return (
       <>
+        <BannerNavegadorIntegrado />
         <ToastContainer toasts={toasts} />
         <Chat conversacion={conversacionActiva} user={user} onBack={() => setConversacionActiva(null)} />
       </>
@@ -294,6 +321,7 @@ function App() {
 
   return (
     <>
+      <BannerNavegadorIntegrado />
       <ToastContainer toasts={toasts} />
       <Campanita />
       {mostrarNotif && <NotificacionesPanel notificaciones={notificaciones} onCerrar={() => setMostrarNotif(false)} onMarcarLeidas={marcarLeidas} />}
