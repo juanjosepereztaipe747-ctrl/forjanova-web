@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
@@ -19,6 +19,9 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
   const [nuevoEstado, setNuevoEstado] = useState('');
   const [fotoEstado, setFotoEstado] = useState(null);
   const [publicando, setPublicando] = useState(false);
+
+  const fotoPerfilInputRef = useRef(null);
+  const fotoEstadoInputRef = useRef(null);
 
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -182,10 +185,10 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
         <div style={s.fotoSection}>
           <div style={s.fotoWrap}>
             {perfil?.foto_perfil ? <img src={perfil.foto_perfil} style={s.fotoImg} alt="foto" /> : <div style={s.fotoPlaceholder}>{perfil?.nombre?.[0]?.toUpperCase()}</div>}
-            <label style={s.fotoBtn} title="Cambiar foto">
+            <button type="button" style={s.fotoBtn} title="Cambiar foto" onClick={() => fotoPerfilInputRef.current?.click()}>
               {subiendoFoto ? '⏳' : '📷'}
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={subirFoto} />
-            </label>
+            </button>
+            <input ref={fotoPerfilInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={subirFoto} />
           </div>
           <div>
             <h2 style={s.nombreTitle}>{perfil?.nombre}</h2>
@@ -225,10 +228,10 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
                 rows={2}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
-                <label style={s.fotoEstadoBtn}>
+                <button type="button" style={s.fotoEstadoBtn} onClick={() => fotoEstadoInputRef.current?.click()}>
                   📎 {fotoEstado ? fotoEstado.name.slice(0, 20) + '...' : 'Adjuntar foto'}
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => setFotoEstado(e.target.files[0])} />
-                </label>
+                </button>
+                <input ref={fotoEstadoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => setFotoEstado(e.target.files[0])} />
                 <button style={{ ...s.saveBtn, opacity: publicando ? 0.6 : 1 }} onClick={publicarEstado} disabled={publicando}>
                   {publicando ? 'Publicando...' : 'Publicar 🔥'}
                 </button>
@@ -314,7 +317,7 @@ const s = {
   fotoWrap: { position: 'relative', flexShrink: 0 },
   fotoImg: { width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #ff6b1a' },
   fotoPlaceholder: { width: '80px', height: '80px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: '700', color: '#ff6b1a', border: '2px solid #333' },
-  fotoBtn: { position: 'absolute', bottom: 0, right: 0, background: '#ff6b1a', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', cursor: 'pointer', touchAction: 'manipulation' },
+  fotoBtn: { position: 'absolute', bottom: 0, right: 0, background: '#ff6b1a', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', cursor: 'pointer', touchAction: 'manipulation' },
   nombreTitle: { fontSize: '20px', fontWeight: '700', color: '#fff', margin: '0 0 2px 0' },
   rolBadge: { fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', display: 'inline-block' },
   toggleBtn: { border: '1px solid', borderRadius: '20px', padding: '6px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
@@ -335,7 +338,7 @@ const s = {
   // Estados
   estadoInputWrap: { background: '#111', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '12px' },
   estadoInput: { width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '14px', outline: 'none', resize: 'none', fontFamily: "'Segoe UI', sans-serif", boxSizing: 'border-box' },
-  fotoEstadoBtn: { fontSize: '12px', color: '#666', cursor: 'pointer', border: '1px solid #2a2a2a', borderRadius: '6px', padding: '4px 10px' },
+  fotoEstadoBtn: { fontSize: '12px', color: '#666', cursor: 'pointer', border: '1px solid #2a2a2a', borderRadius: '6px', padding: '4px 10px', background: 'transparent', fontFamily: 'inherit' },
   estadoCard: { background: '#111', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '12px' },
   estadoFoto: { width: '100%', borderRadius: '8px', maxHeight: '200px', objectFit: 'cover', marginTop: '8px' },
   borrarEstadoBtn: { background: 'transparent', border: 'none', color: '#444', fontSize: '14px', cursor: 'pointer', padding: '0 0 0 8px', flexShrink: 0 },
