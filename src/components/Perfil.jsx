@@ -314,7 +314,7 @@ const s = {
   fotoWrap: { position: 'relative', flexShrink: 0 },
   fotoImg: { width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #ff6b1a' },
   fotoPlaceholder: { width: '80px', height: '80px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: '700', color: '#ff6b1a', border: '2px solid #333' },
-  fotoBtn: { position: 'absolute', bottom: 0, right: 0, background: '#ff6b1a', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', cursor: 'pointer' },
+  fotoBtn: { position: 'absolute', bottom: 0, right: 0, background: '#ff6b1a', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', cursor: 'pointer', touchAction: 'manipulation' },
   nombreTitle: { fontSize: '20px', fontWeight: '700', color: '#fff', margin: '0 0 2px 0' },
   rolBadge: { fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', display: 'inline-block' },
   toggleBtn: { border: '1px solid', borderRadius: '20px', padding: '6px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
