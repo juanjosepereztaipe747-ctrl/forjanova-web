@@ -123,7 +123,7 @@ function Login({ onLogin, loading }) {
       } else {
         const nuevoIntentos = emailVerification.intentos + 1;
         setEmailVerification({ ...emailVerification, intentos: nuevoIntentos });
-        setMensaje('❌ Código incorrecto. Intentos: ' + nuevoIntentos);
+        setMensaje('❌ ' + (data.error || 'Código incorrecto') + '. Intentos: ' + nuevoIntentos);
         
         if (nuevoIntentos >= 3) {
           setMensaje('Demasiados intentos. Vuelve a registrarte.');
