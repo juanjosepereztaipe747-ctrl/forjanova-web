@@ -59,7 +59,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
         const filename = `estado_${user.id}_${Date.now()}.${ext}`;
         await fetch(`${SUPABASE_URL}/storage/v1/object/trabajos/${filename}`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON, 'Content-Type': fotoEstado.type, 'x-upsert': 'true' },
+          headers: { 'Authorization': `Bearer ${SUPABASE_ANON}`, 'apikey': SUPABASE_ANON, 'Content-Type': fotoEstado.type, 'x-upsert': 'true' },
           body: fotoEstado,
         });
         fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/trabajos/${filename}`;
@@ -121,7 +121,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
       const filename = `perfil_${user.id}_${Date.now()}.${ext}`;
       const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/perfiles/${filename}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'apikey': SUPABASE_ANON, 'Content-Type': file.type, 'x-upsert': 'true' },
+        headers: { 'Authorization': `Bearer ${SUPABASE_ANON}`, 'apikey': SUPABASE_ANON, 'Content-Type': file.type, 'x-upsert': 'true' },
         body: file,
       });
       if (!uploadRes.ok) throw new Error('Error subiendo imagen');
