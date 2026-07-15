@@ -12,6 +12,40 @@ import './App.css';
 
 const API = 'https://forjanova-api-backend.onrender.com/api';
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function registrarPush(authToken) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (Notification.permission === 'denied') return;
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
+      });
+    }
+
+    await fetch(`${API}/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify(sub),
+    });
+  } catch (err) {
+    console.error('Error registrando push:', err);
+  }
+}
+
 function esNavegadorIntegrado() {
   const ua = navigator.userAgent || '';
   return /TikTok|musical_ly|Instagram|FBAN|FBAV|Line\/|MicroMessenger/i.test(ua);
@@ -265,6 +299,7 @@ function App() {
       fetchMySolicitudes();
       fetchNotificaciones();
       notifInterval.current = setInterval(fetchNotificaciones, 30000);
+      registrarPush(token);
     }
     return () => clearInterval(notifInterval.current);
   }, [token]);
