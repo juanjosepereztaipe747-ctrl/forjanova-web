@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
+const EXTENSIONES_MIME = {
+  'audio/webm': 'webm',
+  'audio/ogg': 'ogg',
+  'audio/mp4': 'm4a',
+  'audio/mpeg': 'mp3',
+  'audio/wav': 'wav',
+};
+
 function Chat({ conversacion, user, onBack }) {
   const [mensajes, setMensajes] = useState([]);
   const [texto, setTexto] = useState('');
@@ -35,8 +43,12 @@ function Chat({ conversacion, user, onBack }) {
   };
 
   const subirArchivo = async (file, prefijo) => {
-    const nombreArchivo = `${prefijo}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const { error } = await supabase.storage.from('chat-adjuntos').upload(nombreArchivo, file, { upsert: true });
+    const ext = EXTENSIONES_MIME[file.type] || (file.type.split('/')[1] || 'bin');
+    const nombreArchivo = `${prefijo}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from('chat-adjuntos').upload(nombreArchivo, file, {
+      upsert: true,
+      contentType: file.type || 'application/octet-stream',
+    });
     if (error) throw error;
     const { data } = supabase.storage.from('chat-adjuntos').getPublicUrl(nombreArchivo);
     return data.publicUrl;
@@ -104,13 +116,15 @@ function Chat({ conversacion, user, onBack }) {
     try {
       cancelarFoto();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
+        .find((t) => MediaRecorder.isTypeSupported(t));
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
       mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
         setAudioBlob(blob);
         setAudioPreviewUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach((t) => t.stop());
