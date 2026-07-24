@@ -39,6 +39,7 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
   const [tecnicoSeleccionado, setTecnicoSeleccionado] = useState(null);
   const [centro, setCentro] = useState(defaultCenter);
   const [especialidadActiva, setEspecialidadActiva] = useState('');
+  const [busqueda, setBusqueda] = useState('');
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -71,8 +72,19 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
     }
   }, []);
 
+  const tecnicosBuscados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return tecnicos;
+    return tecnicos.filter(
+      (t) =>
+        t.nombre?.toLowerCase().includes(q) ||
+        t.especialidad?.toLowerCase().includes(q) ||
+        t.ciudad?.toLowerCase().includes(q)
+    );
+  }, [tecnicos, busqueda]);
+
   const tecnicosConDistancia = useMemo(() => {
-    return tecnicos.map((t) => {
+    return tecnicosBuscados.map((t) => {
       const lat = parseFloat(t.lat);
       const lng = parseFloat(t.lng);
       const distancia = ubicacionCliente
@@ -82,7 +94,7 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
       const cerca = distancia === null || distancia <= RADIO_KM;
       return { ...t, lat, lng, distancia, coincide, cerca, destacado: coincide && cerca };
     });
-  }, [tecnicos, ubicacionCliente, especialidadActiva]);
+  }, [tecnicosBuscados, ubicacionCliente, especialidadActiva]);
 
   const tecnicosOrdenados = useMemo(() => {
     return [...tecnicosConDistancia].sort((a, b) => {
@@ -104,6 +116,13 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
           ⚠️ No se pudo obtener tu ubicación. Activa el permiso de ubicación en el navegador para ver la distancia a cada técnico.
         </p>
       )}
+
+      <input
+        style={styles.busqueda}
+        placeholder="🔍 Buscar por nombre, especialidad o ciudad..."
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+      />
 
       <div style={styles.chips}>
         <button
@@ -253,6 +272,19 @@ const styles = {
     borderRadius: '8px',
     padding: '10px 12px',
     margin: '0 0 12px 0',
+  },
+  busqueda: {
+    display: 'block',
+    width: '100%',
+    boxSizing: 'border-box',
+    background: '#1a1a1a',
+    border: '1px solid #2a2a2a',
+    borderRadius: '8px',
+    padding: '12px',
+    color: '#fff',
+    fontSize: '14px',
+    outline: 'none',
+    marginBottom: '12px',
   },
   chips: {
     display: 'flex',
