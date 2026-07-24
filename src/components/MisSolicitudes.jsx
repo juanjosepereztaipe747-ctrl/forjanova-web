@@ -236,7 +236,11 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                       <span style={styles.cotPrecio}>S/. {cot.precio}</span>
                     </div>
                     {cot.usuarios?.ciudad && <p style={styles.cotTiempo}>📍 {cot.usuarios.ciudad}</p>}
-                    {cot.tiempo_estimado_dias && <p style={styles.cotTiempo}>⏱ {cot.tiempo_estimado_dias} días estimados</p>}
+                    {cot.tiempo_estimado_dias && (
+                      <p style={styles.cotTiempo}>
+                        ⏱ {/^\d+$/.test(String(cot.tiempo_estimado_dias)) ? `${cot.tiempo_estimado_dias} días estimados` : cot.tiempo_estimado_dias}
+                      </p>
+                    )}
                     <p style={styles.cotMensaje}>{cot.mensaje}</p>
                     {solicitudSeleccionada.estado === 'abierta' && (
                       <button style={styles.aceptarBtn} onClick={() => aceptarCotizacion(cot)}>Aceptar cotización</button>

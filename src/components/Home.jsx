@@ -12,7 +12,7 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
   const handleSubmit = async () => {
     if (!precio || !mensaje) { setError('Precio y mensaje son obligatorios.'); return; }
     setLoading(true); setError('');
-    const result = await onSubmit(sol.id, { precio: parseFloat(precio), mensaje, tiempo_estimado_dias: dias || undefined });
+    const result = await onSubmit(sol.id, { precio: parseFloat(precio), mensaje, tiempo_estimado_dias: dias.trim() || undefined });
     setLoading(false);
     if (result.success) onClose();
     else setError(result.error || 'Error al enviar cotización.');
