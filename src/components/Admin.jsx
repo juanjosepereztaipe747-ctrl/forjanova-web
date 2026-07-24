@@ -1,6 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer } from '@react-google-maps/api';
 
 const API = 'https://forjanova-api-backend.onrender.com/api/admin';
+
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCqChexpK6-a7uFKiLThrIWV0OCsoG3PqI';
+const MAP_LIBRARIES = ['visualization'];
+const mapContainerStyle = { width: '100%', height: '520px', borderRadius: '12px' };
+const defaultCenter = { lat: -12.5, lng: -75.5 }; // centrado entre Lima/Ica/Huancayo
+const mapDarkStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#1a1a1a' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#aaa' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a2a' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f0f0f' }] },
+];
+
+function normalizar(txt) {
+  return (txt || '').toString().trim().toLowerCase();
+}
 
 function Admin({ user, onLogout, showToast }) {
   const [stats, setStats] = useState(null);
@@ -15,6 +31,20 @@ function Admin({ user, onLogout, showToast }) {
   const [filtroRol, setFiltroRol] = useState('todos');
   const [buscarSolicitud, setBuscarSolicitud] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todos');
+
+  const [filtroZonaMapa, setFiltroZonaMapa] = useState('todas');
+  const [filtroServicioMapa, setFiltroServicioMapa] = useState('todos');
+  const [filtroEstadoMapa, setFiltroEstadoMapa] = useState('abierta');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [mostrarHeatmap, setMostrarHeatmap] = useState(false);
+  const [pinSeleccionado, setPinSeleccionado] = useState(null);
+
+  const { isLoaded: mapaCargado } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: MAP_LIBRARIES,
+  });
 
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -115,6 +145,54 @@ function Admin({ user, onLogout, showToast }) {
     return coincideTexto && coincideEstado;
   });
 
+  const enRangoFecha = (fechaISO) => {
+    if (!fechaISO) return false;
+    const fecha = new Date(fechaISO);
+    if (filtroFechaDesde && fecha < new Date(filtroFechaDesde)) return false;
+    if (filtroFechaHasta && fecha > new Date(filtroFechaHasta + 'T23:59:59')) return false;
+    return true;
+  };
+
+  const zonasDisponibles = useMemo(() => {
+    const set = new Set();
+    usuarios.forEach((u) => { if (u.ciudad && u.ciudad.trim()) set.add(u.ciudad.trim()); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [usuarios]);
+
+  const serviciosDisponibles = useMemo(() => {
+    const set = new Set();
+    usuarios.forEach((u) => { if (u.especialidad && u.especialidad.trim()) set.add(u.especialidad.trim()); });
+    solicitudes.forEach((s) => { if (s.servicio && s.servicio.trim()) set.add(s.servicio.trim()); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [usuarios, solicitudes]);
+
+  const tecnicosMapa = useMemo(() => {
+    return usuarios.filter((u) => {
+      if (!(u.rol === 'tecnico' || u.rol === 'ambos')) return false;
+      if (!u.lat || !u.lng) return false;
+      if (filtroZonaMapa !== 'todas' && normalizar(u.ciudad) !== normalizar(filtroZonaMapa)) return false;
+      if (filtroServicioMapa !== 'todos' && normalizar(u.especialidad) !== normalizar(filtroServicioMapa)) return false;
+      if ((filtroFechaDesde || filtroFechaHasta) && !enRangoFecha(u.created_at)) return false;
+      return true;
+    });
+  }, [usuarios, filtroZonaMapa, filtroServicioMapa, filtroFechaDesde, filtroFechaHasta]);
+
+  const solicitudesMapa = useMemo(() => {
+    return solicitudes.filter((s) => {
+      if (!s.lat || !s.lng) return false;
+      if (filtroEstadoMapa !== 'todos' && s.estado !== filtroEstadoMapa) return false;
+      if (filtroZonaMapa !== 'todas' && !normalizar(s.ubicacion).includes(normalizar(filtroZonaMapa))) return false;
+      if (filtroServicioMapa !== 'todos' && normalizar(s.servicio) !== normalizar(filtroServicioMapa)) return false;
+      if ((filtroFechaDesde || filtroFechaHasta) && !enRangoFecha(s.created_at)) return false;
+      return true;
+    });
+  }, [solicitudes, filtroZonaMapa, filtroServicioMapa, filtroEstadoMapa, filtroFechaDesde, filtroFechaHasta]);
+
+  const heatmapData = useMemo(() => {
+    if (!mapaCargado || !window.google) return [];
+    return solicitudesMapa.map((s) => new window.google.maps.LatLng(parseFloat(s.lat), parseFloat(s.lng)));
+  }, [mapaCargado, solicitudesMapa]);
+
   const rolColor = (rol) => {
     if (rol === 'admin') return { bg: '#2a0a2a', color: '#e040fb' };
     if (rol === 'tecnico') return { bg: '#0a1a2a', color: '#42a5f5' };
@@ -145,9 +223,9 @@ function Admin({ user, onLogout, showToast }) {
       </div>
 
       <div style={s.tabs}>
-        {['stats', 'usuarios', 'solicitudes', 'calificaciones'].map((t) => (
+        {['stats', 'mapa', 'usuarios', 'solicitudes', 'calificaciones'].map((t) => (
           <button key={t} style={{ ...s.tab, ...(tab === t ? s.tabActive : {}) }} onClick={() => setTab(t)}>
-            {t === 'stats' ? '📊 Stats' : t === 'usuarios' ? '👥 Usuarios' : t === 'solicitudes' ? '📋 Solicitudes' : '⭐ Calificaciones'}
+            {t === 'stats' ? '📊 Stats' : t === 'mapa' ? '🗺️ Mapa' : t === 'usuarios' ? '👥 Usuarios' : t === 'solicitudes' ? '📋 Solicitudes' : '⭐ Calificaciones'}
           </button>
         ))}
       </div>
@@ -176,6 +254,104 @@ function Admin({ user, onLogout, showToast }) {
                   <div style={s.statCard}><p style={{ ...s.statNum, color: '#ffa726' }}>{stats.promedio_estrellas}★</p><p style={s.statLabel}>Promedio estrellas</p></div>
                   <div style={s.statCard}><p style={{ ...s.statNum, color: '#ff6b1a', fontSize: '24px' }}>S/. {stats.monto_total}</p><p style={s.statLabel}>Monto total</p></div>
                 </div>
+              </div>
+            )}
+
+            {tab === 'mapa' && (
+              <div>
+                <h2 style={s.title}>🗺️ Mapa de técnicos y demanda</h2>
+                <div style={s.filterBar}>
+                  <select style={s.filterSelect} value={filtroZonaMapa} onChange={(e) => setFiltroZonaMapa(e.target.value)}>
+                    <option value="todas">Todas las zonas</option>
+                    {zonasDisponibles.map((z) => <option key={z} value={z}>{z}</option>)}
+                  </select>
+                  <select style={s.filterSelect} value={filtroServicioMapa} onChange={(e) => setFiltroServicioMapa(e.target.value)}>
+                    <option value="todos">Todos los servicios</option>
+                    {serviciosDisponibles.map((sv) => <option key={sv} value={sv}>{sv}</option>)}
+                  </select>
+                  <select style={s.filterSelect} value={filtroEstadoMapa} onChange={(e) => setFiltroEstadoMapa(e.target.value)}>
+                    <option value="todos">Todos los estados</option>
+                    <option value="abierta">Abierta (demanda activa)</option>
+                    <option value="aceptada">Aceptada</option>
+                    <option value="completada">Completada</option>
+                    <option value="cancelada">Cancelada</option>
+                  </select>
+                  <input style={s.filterSelect} type="date" value={filtroFechaDesde} onChange={(e) => setFiltroFechaDesde(e.target.value)} title="Desde" />
+                  <input style={s.filterSelect} type="date" value={filtroFechaHasta} onChange={(e) => setFiltroFechaHasta(e.target.value)} title="Hasta" />
+                  <button
+                    style={{ ...s.filterSelect, cursor: 'pointer', background: mostrarHeatmap ? '#2a1508' : '#111', color: mostrarHeatmap ? '#ff6b1a' : '#aaa', border: mostrarHeatmap ? '1px solid #ff6b1a' : '1px solid #333' }}
+                    onClick={() => setMostrarHeatmap((v) => !v)}
+                  >
+                    {mostrarHeatmap ? '🔥 Heatmap ON' : '🔥 Heatmap OFF'}
+                  </button>
+                </div>
+
+                {!mapaCargado ? (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>Cargando mapa...</p>
+                ) : (
+                  <GoogleMap mapContainerStyle={mapContainerStyle} center={defaultCenter} zoom={6} options={{ styles: mapDarkStyle }}>
+                    {mostrarHeatmap && heatmapData.length > 0 && (
+                      <HeatmapLayer data={heatmapData} options={{ radius: 30 }} />
+                    )}
+
+                    {!mostrarHeatmap && tecnicosMapa.map((t) => (
+                      <Marker
+                        key={`tec-${t.id}`}
+                        position={{ lat: parseFloat(t.lat), lng: parseFloat(t.lng) }}
+                        icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
+                        onClick={() => setPinSeleccionado({ tipo: 'tecnico', data: t })}
+                      />
+                    ))}
+
+                    {!mostrarHeatmap && solicitudesMapa.map((sol) => (
+                      <Marker
+                        key={`sol-${sol.id}`}
+                        position={{ lat: parseFloat(sol.lat), lng: parseFloat(sol.lng) }}
+                        icon={{ url: sol.urgente ? 'http://maps.google.com/mapfiles/ms/icons/red-pushpin.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
+                        onClick={() => setPinSeleccionado({ tipo: 'solicitud', data: sol })}
+                      />
+                    ))}
+
+                    {pinSeleccionado && (
+                      <InfoWindow
+                        position={{ lat: parseFloat(pinSeleccionado.data.lat), lng: parseFloat(pinSeleccionado.data.lng) }}
+                        onCloseClick={() => setPinSeleccionado(null)}
+                      >
+                        {pinSeleccionado.tipo === 'tecnico' ? (
+                          <div style={{ background: '#1a1a1a', color: '#fff', padding: '8px', minWidth: '160px' }}>
+                            <p style={{ margin: '0 0 4px 0', fontWeight: '600', color: '#42a5f5' }}>{pinSeleccionado.data.nombre}</p>
+                            {pinSeleccionado.data.especialidad && <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#888' }}>🔧 {pinSeleccionado.data.especialidad}</p>}
+                            {pinSeleccionado.data.ciudad && <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#888' }}>📍 {pinSeleccionado.data.ciudad}</p>}
+                            <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>🗓 Desde {new Date(pinSeleccionado.data.created_at).toLocaleDateString('es-PE')}</p>
+                            {pinSeleccionado.data.rating > 0 && <p style={{ margin: 0, fontSize: '12px', color: '#ffa726' }}>⭐ {pinSeleccionado.data.rating} · {pinSeleccionado.data.trabajos_completados} trabajos</p>}
+                          </div>
+                        ) : (
+                          <div style={{ background: '#1a1a1a', color: '#fff', padding: '8px', minWidth: '160px' }}>
+                            <p style={{ margin: '0 0 4px 0', fontWeight: '600', color: '#ff6b1a' }}>
+                              {pinSeleccionado.data.urgente && '🔴 URGENTE · '}{pinSeleccionado.data.titulo || 'Solicitud'}
+                            </p>
+                            {pinSeleccionado.data.servicio && <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#888' }}>🛠 {pinSeleccionado.data.servicio}</p>}
+                            {pinSeleccionado.data.ubicacion && <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#888' }}>📍 {pinSeleccionado.data.ubicacion}</p>}
+                            <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: '#666' }}>● {pinSeleccionado.data.estado}</p>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>🗓 {new Date(pinSeleccionado.data.created_at).toLocaleDateString('es-PE')}</p>
+                          </div>
+                        )}
+                      </InfoWindow>
+                    )}
+                  </GoogleMap>
+                )}
+
+                <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '12px', color: '#666', flexWrap: 'wrap' }}>
+                  <span>🔵 Técnicos ({tecnicosMapa.length})</span>
+                  <span>🔴 Solicitudes ({solicitudesMapa.length})</span>
+                  {mostrarHeatmap && <span>🔥 Vista heatmap de densidad de demanda</span>}
+                </div>
+
+                {tecnicosMapa.length === 0 && solicitudesMapa.length === 0 && (
+                  <p style={{ color: '#555', textAlign: 'center', padding: '20px', fontSize: '13px' }}>
+                    No hay técnicos ni solicitudes con ubicación para estos filtros. La ubicación se captura al registrarse (técnicos) o al crear una solicitud (clientes).
+                  </p>
+                )}
               </div>
             )}
 

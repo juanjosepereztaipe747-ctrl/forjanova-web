@@ -13,6 +13,7 @@ function Login({ onLogin, loading }) {
   const [emailVerification, setEmailVerification] = useState({
     codigo: '', email: '', intentos: 0,
   });
+  const [ubicacionTecnico, setUbicacionTecnico] = useState({ lat: null, lng: null });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -64,7 +65,7 @@ function Login({ onLogin, loading }) {
         body.especialidad = formData.especialidad;
         body.ciudad = formData.ciudad;
         const { lat, lng } = await obtenerUbicacion();
-        if (lat && lng) { body.lat = lat; body.lng = lng; }
+        if (lat && lng) { setUbicacionTecnico({ lat, lng }); }
       }
       
       const res = await fetch('https://forjanova-api-backend.onrender.com/api/auth/registro', {
@@ -110,6 +111,8 @@ function Login({ onLogin, loading }) {
           especialidad: formData.especialidad || null,
           ciudad: formData.ciudad || null,
           telefono: formData.telefono || null,
+          lat: ubicacionTecnico.lat,
+          lng: ubicacionTecnico.lng,
         }),
       });
       
@@ -276,4 +279,4 @@ function Login({ onLogin, loading }) {
   );
 }
 
-export default Login;
+export default Login;         
