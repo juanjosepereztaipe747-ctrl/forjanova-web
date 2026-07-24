@@ -11,6 +11,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
   const [guardando, setGuardando] = useState(false);
   const [editando, setEditando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [actualizandoUbicacion, setActualizandoUbicacion] = useState(false);
   const [msg, setMsg] = useState('');
   const [form, setForm] = useState({ nombre: '', ciudad: '', especialidad: '', telefono: '', bio: '' });
 
@@ -114,6 +115,29 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
     } catch (err) { setMsg('Error cambiando disponibilidad'); }
   };
 
+  const actualizarUbicacion = async () => {
+    if (!navigator.geolocation) { setMsg('Tu navegador no soporta geolocalización'); return; }
+    setActualizandoUbicacion(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        try {
+          const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify({ lat, lng }) });
+          const data = await res.json();
+          if (data.success) {
+            setPerfil(prev => ({ ...prev, lat, lng }));
+            onUserUpdate && onUserUpdate({ ...perfil, lat, lng });
+            setMsg('✅ Ubicación actualizada');
+          } else { setMsg('Error: ' + data.error); }
+        } catch (err) { setMsg('Error guardando ubicación'); }
+        setActualizandoUbicacion(false);
+        setTimeout(() => setMsg(''), 3000);
+      },
+      () => { setMsg('No se pudo obtener tu ubicación. Revisa los permisos del navegador.'); setActualizandoUbicacion(false); }
+    );
+  };
+
   const subirFoto = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -195,9 +219,12 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
             <p style={{ fontSize: '13px', color: '#555', margin: '2px 0 8px 0' }}>{perfil?.email}</p>
             <span style={{ ...s.rolBadge, ...rolColor(perfil?.rol) }}>{perfil?.rol}</span>
             {esTecnico && (
-              <div style={{ marginTop: '12px' }}>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button onClick={toggleDisponibilidad} style={{ ...s.toggleBtn, background: perfil?.disponible ? '#0a2a0a' : '#2a0a0a', color: perfil?.disponible ? '#4caf50' : '#f44336', borderColor: perfil?.disponible ? '#4caf50' : '#f44336' }}>
                   {perfil?.disponible ? '🟢 Disponible para trabajos' : '🔴 No disponible'}
+                </button>
+                <button onClick={actualizarUbicacion} disabled={actualizandoUbicacion} style={{ ...s.toggleBtn, background: perfil?.lat && perfil?.lng ? '#0a1a2a' : '#2a1a0a', color: perfil?.lat && perfil?.lng ? '#4a9eff' : '#ffa726', borderColor: perfil?.lat && perfil?.lng ? '#4a9eff' : '#ffa726', opacity: actualizandoUbicacion ? 0.6 : 1 }}>
+                  {actualizandoUbicacion ? '📍 Obteniendo ubicación...' : perfil?.lat && perfil?.lng ? '📍 Ubicación guardada' : '📍 Guardar mi ubicación'}
                 </button>
               </div>
             )}
