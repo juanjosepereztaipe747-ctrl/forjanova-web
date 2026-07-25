@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Circle, InfoWindow } from '@react-google-maps/api';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCqChexpK6-a7uFKiLThrIWV0OCsoG3PqI';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+const API = `${import.meta.env.VITE_API_URL}/api`;
 
 const mapContainerStyle = { width: '100%', height: '360px', borderRadius: '12px' };
 
@@ -48,7 +49,7 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
   useEffect(() => {
     const fetchTecnicos = async () => {
       try {
-        const res = await fetch('https://forjanova-api-backend.onrender.com/api/tecnicos');
+        const res = await fetch(`${API}/tecnicos`);
         const data = await res.json();
         if (data.success) {
           setTecnicos(data.data.filter((t) => t.lat && t.lng));
@@ -203,6 +204,12 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
       {tecnicos.length === 0 && (
         <p style={{ textAlign: 'center', color: '#555', fontSize: '13px', marginTop: '12px' }}>
           No hay técnicos con ubicación disponible aún
+        </p>
+      )}
+
+      {tecnicos.length > 0 && tecnicosOrdenados.length === 0 && (
+        <p style={{ textAlign: 'center', color: '#555', fontSize: '13px', marginTop: '12px' }}>
+          No se encontraron técnicos con esos criterios de búsqueda
         </p>
       )}
 

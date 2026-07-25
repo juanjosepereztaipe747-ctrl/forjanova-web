@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API = 'https://forjanova-api-backend.onrender.com/api';
+const API = `${import.meta.env.VITE_API_URL}/api`;
 const WHATSAPP_NUM = '51929336337';
 
 function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast }) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
-const API = 'https://forjanova-api-backend.onrender.com/api';
+const API = `${import.meta.env.VITE_API_URL}/api`;
 const SUPABASE_URL = 'https://alvgcnfkhmvrzehpwyjq.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_0iOSNTdAxM653Cm6Pn4Iyw_GfCdX6cP';
 

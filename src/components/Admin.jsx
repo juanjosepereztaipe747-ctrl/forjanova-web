@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer } from '@react-google-maps/api';
 
-const API = 'https://forjanova-api-backend.onrender.com/api/admin';
+const API = `${import.meta.env.VITE_API_URL}/api/admin`;
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCqChexpK6-a7uFKiLThrIWV0OCsoG3PqI';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 const MAP_LIBRARIES = ['visualization'];
 const mapContainerStyle = { width: '100%', height: '520px', borderRadius: '12px' };
 const defaultCenter = { lat: -12.5, lng: -75.5 }; // centrado entre Lima/Ica/Huancayo

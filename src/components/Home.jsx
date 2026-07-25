@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import Mapa from './Mapa';
 import { supabase } from '../supabaseClient';
 
+const API = `${import.meta.env.VITE_API_URL}/api`;
+
 function ModalCotizar({ sol, onClose, onSubmit }) {
   const [precio, setPrecio] = useState('');
   const [mensaje, setMensaje] = useState('');
@@ -177,11 +179,13 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   }, [vistaActiva]);
 
   const cargarTecnicos = async () => {
-    const { data } = await supabase
-      .from('usuarios')
-      .select('id, nombre, especialidad, ciudad, foto_perfil, descripcion_perfil, rating, trabajos_completados')
-      .or('rol.eq.tecnico,rol.eq.ambos');
-    if (data) setTecnicos(data);
+    try {
+      const res = await fetch(`${API}/tecnicos`);
+      const data = await res.json();
+      if (data.success) setTecnicos(data.data);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleCotizarSubmit = async (solicitudId, formData) => {

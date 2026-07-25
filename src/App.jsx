@@ -10,7 +10,7 @@ import Admin from './components/Admin';
 import Perfil from './components/Perfil';
 import './App.css';
 
-const API = 'https://forjanova-api-backend.onrender.com/api';
+const API = `${import.meta.env.VITE_API_URL}/api`;
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

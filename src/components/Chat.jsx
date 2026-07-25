@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
+const API = `${import.meta.env.VITE_API_URL}/api`;
+
 const EXTENSIONES_MIME = {
   'audio/webm': 'webm',
   'audio/ogg': 'ogg',
@@ -32,7 +34,7 @@ function Chat({ conversacion, user, onBack }) {
   const fetchMensajes = async () => {
     const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch(`https://forjanova-api-backend.onrender.com/api/conversaciones/${conversacion.id}/mensajes`, {
+      const res = await fetch(`${API}/conversaciones/${conversacion.id}/mensajes`, {
         headers: { 'Authorization': `Bearer ${authToken}` },
       });
       const data = await res.json();
@@ -69,7 +71,7 @@ function Chat({ conversacion, user, onBack }) {
         body = { texto: null, tipo: 'audio', archivo_url: url };
       }
 
-      const res = await fetch(`https://forjanova-api-backend.onrender.com/api/conversaciones/${conversacion.id}/mensajes`, {
+      const res = await fetch(`${API}/conversaciones/${conversacion.id}/mensajes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

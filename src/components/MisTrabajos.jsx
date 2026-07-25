@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
-const API = 'https://forjanova-api-backend.onrender.com/api';
+const API = `${import.meta.env.VITE_API_URL}/api`;
 
 function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat, currentView, showToast }) {
   const pendientes = trabajos.filter((t) => t.estado === 'pendiente');

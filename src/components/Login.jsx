@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+const API = `${import.meta.env.VITE_API_URL}/api`;
+
 function Login({ onLogin, loading }) {
   const [view, setView] = useState('login');
   const [formData, setFormData] = useState({
@@ -14,6 +16,8 @@ function Login({ onLogin, loading }) {
     codigo: '', email: '', intentos: 0,
   });
   const [ubicacionTecnico, setUbicacionTecnico] = useState({ lat: null, lng: null });
+  const [recuperar, setRecuperar] = useState({ paso: 'solicitar', email: '', codigo: '', password: '', confirmar: '' });
+  const [loadingRecuperar, setLoadingRecuperar] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -68,7 +72,7 @@ function Login({ onLogin, loading }) {
         if (lat && lng) { setUbicacionTecnico({ lat, lng }); }
       }
       
-      const res = await fetch('https://forjanova-api-backend.onrender.com/api/auth/registro', {
+      const res = await fetch(`${API}/auth/registro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -99,7 +103,7 @@ function Login({ onLogin, loading }) {
     
     setLoadingReg(true);
     try {
-      const res = await fetch('https://forjanova-api-backend.onrender.com/api/auth/verificar-email', {
+      const res = await fetch(`${API}/auth/verificar-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,9 +147,56 @@ function Login({ onLogin, loading }) {
     setLoadingReg(false);
   };
 
-  const handleRecuperar = (e) => {
+  const handleSolicitarRecuperacion = async (e) => {
     e.preventDefault();
-    setMensaje('Si el correo existe, recibirás instrucciones pronto.');
+    setLoadingRecuperar(true);
+    setMensaje('');
+    try {
+      const res = await fetch(`${API}/auth/solicitar-recuperacion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recuperar.email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRecuperar((prev) => ({ ...prev, paso: 'confirmar' }));
+        setMensaje('✅ Si el correo existe, recibirás un código para restablecer tu contraseña.');
+      } else {
+        setMensaje('Error: ' + (data.error || 'No se pudo procesar la solicitud'));
+      }
+    } catch (err) {
+      setMensaje('Error: ' + err.message);
+    }
+    setLoadingRecuperar(false);
+  };
+
+  const handleConfirmarRecuperacion = async (e) => {
+    e.preventDefault();
+    if (recuperar.password !== recuperar.confirmar) {
+      setMensaje('Las contraseñas no coinciden');
+      return;
+    }
+    setLoadingRecuperar(true);
+    setMensaje('');
+    try {
+      const res = await fetch(`${API}/auth/resetear-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recuperar.email, codigo: recuperar.codigo, password: recuperar.password }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setView('login');
+        setFormData((prev) => ({ ...prev, email: recuperar.email, password: '' }));
+        setRecuperar({ paso: 'solicitar', email: '', codigo: '', password: '', confirmar: '' });
+        setMensaje('✅ Contraseña actualizada. Ya puedes iniciar sesión.');
+      } else {
+        setMensaje('Error: ' + (data.error || 'No se pudo restablecer la contraseña'));
+      }
+    } catch (err) {
+      setMensaje('Error: ' + err.message);
+    }
+    setLoadingRecuperar(false);
   };
 
   return (
@@ -264,14 +315,32 @@ function Login({ onLogin, loading }) {
           </form>
         )}
 
-        {view === 'recuperar' && (
-          <form onSubmit={handleRecuperar} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.5', marginBottom: '8px' }}>Ingresa tu correo y te enviaremos instrucciones para recuperar tu contraseña.</p>
+        {view === 'recuperar' && recuperar.paso === 'solicitar' && (
+          <form onSubmit={handleSolicitarRecuperacion} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.5', marginBottom: '8px' }}>Ingresa tu correo y te enviaremos un código para recuperar tu contraseña.</p>
             <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '2px', marginTop: '8px' }}>Correo electrónico</label>
-            <input name="email" type="email" placeholder="tu@correo.com" value={formData.email} onChange={handleChange} required style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
-            {mensaje && <p style={{ color: '#4caf50', fontSize: '13px', marginTop: '8px', textAlign: 'center' }}>{mensaje}</p>}
-            <button type="submit" style={{ marginTop: '20px', background: '#ff6b1a', color: '#fff', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', width: '100%' }}>Enviar instrucciones</button>
-            <button type="button" style={{ marginTop: '8px', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: '8px', padding: '12px', fontSize: '14px', cursor: 'pointer', width: '100%' }} onClick={() => { setView('login'); setMensaje(''); }}>Volver al login</button>
+            <input type="email" placeholder="tu@correo.com" value={recuperar.email} onChange={(e) => setRecuperar((prev) => ({ ...prev, email: e.target.value }))} required style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+            {mensaje && <p style={{ color: mensaje.includes('✅') ? '#4caf50' : '#ff4444', fontSize: '13px', marginTop: '8px', textAlign: 'center' }}>{mensaje}</p>}
+            <button type="submit" disabled={loadingRecuperar} style={{ marginTop: '20px', background: '#ff6b1a', color: '#fff', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', width: '100%' }}>{loadingRecuperar ? 'Enviando...' : 'Enviar código'}</button>
+            <button type="button" style={{ marginTop: '8px', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: '8px', padding: '12px', fontSize: '14px', cursor: 'pointer', width: '100%' }} onClick={() => { setView('login'); setMensaje(''); setRecuperar({ paso: 'solicitar', email: '', codigo: '', password: '', confirmar: '' }); }}>Volver al login</button>
+          </form>
+        )}
+
+        {view === 'recuperar' && recuperar.paso === 'confirmar' && (
+          <form onSubmit={handleConfirmarRecuperacion} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <p style={{ color: '#888', fontSize: '14px', lineHeight: '1.5', marginBottom: '8px' }}>Ingresa el código que te enviamos a {recuperar.email} y tu nueva contraseña.</p>
+            <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '2px', marginTop: '8px' }}>Código de verificación</label>
+            <input type="text" maxLength="6" placeholder="000000" value={recuperar.codigo} onChange={(e) => setRecuperar((prev) => ({ ...prev, codigo: e.target.value }))} required style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '24px', outline: 'none', width: '100%', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '8px', fontWeight: 'bold' }} />
+
+            <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '2px', marginTop: '8px' }}>Nueva contraseña</label>
+            <input type="password" placeholder="Mínimo 6 caracteres" value={recuperar.password} onChange={(e) => setRecuperar((prev) => ({ ...prev, password: e.target.value }))} required style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+
+            <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '2px', marginTop: '8px' }}>Confirmar contraseña</label>
+            <input type="password" placeholder="Repite tu contraseña" value={recuperar.confirmar} onChange={(e) => setRecuperar((prev) => ({ ...prev, confirmar: e.target.value }))} required style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+
+            {mensaje && <p style={{ color: mensaje.includes('✅') ? '#4caf50' : '#ff4444', fontSize: '13px', marginTop: '8px', textAlign: 'center' }}>{mensaje}</p>}
+            <button type="submit" disabled={loadingRecuperar} style={{ marginTop: '20px', background: '#ff6b1a', color: '#fff', border: 'none', borderRadius: '8px', padding: '14px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', width: '100%' }}>{loadingRecuperar ? 'Guardando...' : 'Restablecer contraseña'}</button>
+            <button type="button" style={{ marginTop: '8px', background: 'transparent', color: '#666', border: '1px solid #333', borderRadius: '8px', padding: '12px', fontSize: '14px', cursor: 'pointer', width: '100%' }} onClick={() => { setView('login'); setMensaje(''); setRecuperar({ paso: 'solicitar', email: '', codigo: '', password: '', confirmar: '' }); }}>Volver al login</button>
           </form>
         )}
       </div>
