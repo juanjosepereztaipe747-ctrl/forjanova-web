@@ -206,6 +206,7 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         {(user?.rol === 'tecnico' || user?.rol === 'ambos') && (
           <button style={{ ...styles.navBtn, ...styles.navBtnActive }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
+        <button style={styles.navBtn} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>
 

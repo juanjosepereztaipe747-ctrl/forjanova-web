@@ -197,6 +197,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
           { id: 'home', label: '🏠 Inicio' },
           { id: 'mis', label: '📋 Mis Solicitudes' },
           ...(esTecnico ? [{ id: 'trabajos', label: '🔧 Mis Trabajos' }] : []),
+          { id: 'comunidad', label: '🎉 Comunidad' },
           { id: 'perfil', label: '👤 Perfil' },
         ].map(item => (
           <button key={item.id} style={{ ...s.tab, ...(item.id === 'perfil' ? s.tabActive : {}) }} onClick={() => onChangeView(item.id)}>

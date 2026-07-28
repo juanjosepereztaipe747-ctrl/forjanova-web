@@ -273,6 +273,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
       <div style={styles.navbar}>
         <button style={styles.navBtn} onClick={() => onChangeView('home')}>Explorar</button>
         <button style={{ ...styles.navBtn, ...styles.navBtnActive }} onClick={() => onChangeView('mis')}>Mis solicitudes</button>
+        <button style={styles.navBtn} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>
 

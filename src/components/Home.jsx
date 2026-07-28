@@ -236,6 +236,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
         {esTecnico && (
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
+        <button style={{ ...styles.navBtn, ...(currentView === 'comunidad' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>

@@ -8,6 +8,7 @@ import MisTrabajos from './components/MisTrabajos';
 import Chat from './components/Chat';
 import Admin from './components/Admin';
 import Perfil from './components/Perfil';
+import Comunidad from './components/Comunidad';
 import './App.css';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
@@ -375,6 +376,9 @@ function App() {
       )}
       {currentView === 'perfil' && (
         <Perfil user={user} onChangeView={setCurrentView} onLogout={handleLogout} onUserUpdate={handleUserUpdate} showToast={showToast} />
+      )}
+      {currentView === 'comunidad' && (
+        <Comunidad user={user} onChangeView={setCurrentView} onLogout={handleLogout} currentView={currentView} showToast={showToast} />
       )}
     </>
   );
