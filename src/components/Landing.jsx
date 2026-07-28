@@ -1,8 +1,23 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '../supabaseClient';
 
 function Landing({ onEntrar }) {
+  const [trabajosReales, setTrabajosReales] = useState([]);
+
   useEffect(() => {
     document.title = 'Forjanova Servicios Ya — Encuentra tu técnico hoy';
+  }, []);
+
+  useEffect(() => {
+    const cargarTrabajos = async () => {
+      const { data } = await supabase
+        .from('fotos_trabajos')
+        .select('*, usuarios(nombre, especialidad, ciudad)')
+        .order('created_at', { ascending: false })
+        .limit(9);
+      if (data) setTrabajosReales(data);
+    };
+    cargarTrabajos();
   }, []);
 
   const WHATSAPP_NUM = '51929336337';
@@ -49,6 +64,7 @@ function Landing({ onEntrar }) {
           .fn-pain-grid { grid-template-columns: 1fr !important; }
           .fn-trust-grid { grid-template-columns: 1fr !important; }
           .fn-cat-grid { grid-template-columns: 1fr !important; }
+          .fn-galeria-grid { grid-template-columns: 1fr !important; }
           .fn-footer-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
           .fn-contact-grid { grid-template-columns: 1fr !important; }
         }
@@ -199,6 +215,28 @@ function Landing({ onEntrar }) {
           </div>
         </div>
       </section>
+
+      {trabajosReales.length > 0 && (
+        <section style={s.section}>
+          <span style={s.eyebrow}>TRABAJOS REALES</span>
+          <h2 style={{ ...s.sectionTitle, marginTop: '12px' }} className="fn-hero-title">Lo que ya se está haciendo</h2>
+          <div className="fn-heat-bar" style={{ width: '60px', margin: '20px 0 32px 0' }} />
+          <div style={s.galeriaGrid} className="fn-galeria-grid">
+            {trabajosReales.map((foto) => (
+              <div key={foto.id} style={s.galeriaCard} className="fn-card">
+                <img src={foto.url} alt={foto.descripcion || 'Trabajo realizado'} style={s.galeriaImg} />
+                <div style={s.galeriaInfo}>
+                  {foto.descripcion && <p style={s.galeriaDesc}>{foto.descripcion}</p>}
+                  <p style={s.galeriaTecnico}>
+                    🔧 {foto.usuarios?.nombre || 'Técnico Forjanova'}
+                    {foto.usuarios?.especialidad && ` · ${foto.usuarios.especialidad}`}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section style={s.section}>
         <h2 style={s.sectionTitle} className="fn-hero-title">Cómo funciona</h2>
@@ -357,6 +395,12 @@ const s = {
   catCard: { background: ASH, border: '1px solid #2a231f', borderRadius: '14px', padding: '22px', transition: 'border-color 0.2s ease' },
   catNombre: { fontSize: '15px', fontWeight: 600, color: ORANGE, margin: '0 0 8px 0' },
   catDesc: { fontSize: '12.5px', color: STEEL, lineHeight: 1.6, margin: 0 },
+  galeriaGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' },
+  galeriaCard: { background: ASH, border: '1px solid #2a231f', borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.2s ease' },
+  galeriaImg: { width: '100%', height: '190px', objectFit: 'cover', display: 'block' },
+  galeriaInfo: { padding: '14px 16px' },
+  galeriaDesc: { fontSize: '13px', color: OFFWHITE, lineHeight: 1.5, margin: '0 0 8px 0' },
+  galeriaTecnico: { fontSize: '11.5px', color: ORANGE, margin: 0, fontFamily: "'JetBrains Mono', monospace" },
   faqList: { maxWidth: '760px', display: 'flex', flexDirection: 'column', gap: '2px' },
   faqItem: { borderBottom: '1px solid #2a231f' },
   faqQ: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 4px', cursor: 'pointer', fontSize: '14.5px', fontWeight: 600, color: OFFWHITE, transition: 'color 0.2s ease' },
