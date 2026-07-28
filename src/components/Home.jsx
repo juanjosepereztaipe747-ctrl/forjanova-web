@@ -25,7 +25,7 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>Enviar cotización</h3>
-          <button style={styles.closeBtn} onClick={onClose}>✕</button>
+          <button style={styles.closeBtn} onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <div style={styles.modalSolicitud}>
           <p style={styles.modalSolicitudTitulo}>{sol.titulo || sol.descripcion?.slice(0, 50)}</p>
@@ -92,7 +92,7 @@ function ModalTecnico({ tecnico, onClose }) {
       <div style={{ ...styles.modal, maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>Perfil del técnico</h3>
-          <button style={styles.closeBtn} onClick={onClose}>✕</button>
+          <button style={styles.closeBtn} onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <div style={styles.modalBody}>
           <div style={styles.tecnicoPerfilWrap}>
@@ -157,7 +157,7 @@ function ModalTecnico({ tecnico, onClose }) {
   );
 }
 
-function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentView }) {
+function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentView, showToast }) {
   const [modalSol, setModalSol] = useState(null);
   const [modalTecnico, setModalTecnico] = useState(null);
   const [toast, setToast] = useState('');
@@ -183,8 +183,9 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
       const res = await fetch(`${API}/tecnicos`);
       const data = await res.json();
       if (data.success) setTecnicos(data.data);
+      else showToast?.('No se pudieron cargar los técnicos', 'error');
     } catch (err) {
-      console.error(err);
+      showToast?.('No se pudieron cargar los técnicos, revisa tu conexión', 'error');
     }
   };
 
@@ -256,7 +257,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
           <div>
             <h2 style={styles.sectionTitle}>Técnicos cerca de ti</h2>
             <p style={styles.sectionSub}>Permite el acceso a tu ubicación para ver técnicos cercanos</p>
-            <Mapa esTecnico={esTecnico} onCotizar={handleCotizarSubmit} />
+            <Mapa esTecnico={esTecnico} onCotizar={handleCotizarSubmit} showToast={showToast} />
           </div>
         )}
 

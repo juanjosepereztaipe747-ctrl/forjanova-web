@@ -384,7 +384,7 @@ function Admin({ user, onLogout, showToast }) {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                               <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', color: '#ff6b1a', overflow: 'hidden', flexShrink: 0 }}>
-                                {u.foto_perfil ? <img src={u.foto_perfil} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : u.nombre?.[0]?.toUpperCase()}
+                                {u.foto_perfil ? <img src={u.foto_perfil} alt={u.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : u.nombre?.[0]?.toUpperCase()}
                               </div>
                               <div>
                                 <p style={{ fontSize: '14px', fontWeight: '600', color: '#fff', margin: '0 0 2px 0' }}>

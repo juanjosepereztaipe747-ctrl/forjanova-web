@@ -204,7 +204,7 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         <button style={{ ...styles.navBtn, ...(currentView === 'home' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('home')}>Explorar</button>
         <button style={{ ...styles.navBtn, ...(currentView === 'mis' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mis')}>Mis solicitudes</button>
         {(user?.rol === 'tecnico' || user?.rol === 'ambos') && (
-          <button style={{ ...styles.navBtn, ...styles.navBtnActive }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
+          <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
         <button style={styles.navBtn} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>

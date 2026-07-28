@@ -151,7 +151,9 @@ function App() {
       const res = await fetch(`${API}/notificaciones`, { headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json();
       if (data.success) setNotificaciones(data.data);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Error cargando notificaciones:', err);
+    }
   };
 
   const marcarLeidas = async () => {
@@ -159,7 +161,9 @@ function App() {
     try {
       await fetch(`${API}/notificaciones/leer`, { method: 'PUT', headers: { Authorization: `Bearer ${authToken}` } });
       setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })));
-    } catch (err) {}
+    } catch (err) {
+      showToast('No se pudieron marcar las notificaciones como leídas', 'error');
+    }
   };
 
   const handleLogin = async (email, password) => {
@@ -249,7 +253,10 @@ function App() {
       const res = await fetch(`${API}/solicitudes`);
       const data = await res.json();
       if (data.success) setSolicitudes(data.data);
-    } catch (err) {}
+      else showToast('No se pudieron cargar las solicitudes: ' + data.error, 'error');
+    } catch (err) {
+      showToast('No se pudieron cargar las solicitudes, revisa tu conexión', 'error');
+    }
   };
 
   const fetchMySolicitudes = async () => {
@@ -258,7 +265,10 @@ function App() {
       const res = await fetch(`${API}/mis-solicitudes`, { headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json();
       if (data.success) setMySolicitudes(data.data);
-    } catch (err) {}
+      else showToast('No se pudieron cargar tus solicitudes: ' + data.error, 'error');
+    } catch (err) {
+      showToast('No se pudieron cargar tus solicitudes, revisa tu conexión', 'error');
+    }
   };
 
   const fetchTrabajos = async () => {
@@ -267,7 +277,10 @@ function App() {
       const res = await fetch(`${API}/mis-trabajos`, { headers: { Authorization: `Bearer ${authToken}` } });
       const data = await res.json();
       if (data.success) setTrabajos(data.data);
-    } catch (err) {}
+      else showToast('No se pudieron cargar tus trabajos: ' + data.error, 'error');
+    } catch (err) {
+      showToast('No se pudieron cargar tus trabajos, revisa tu conexión', 'error');
+    }
   };
 
   const handleLogout = () => {
@@ -350,7 +363,7 @@ function App() {
       <>
         <BannerNavegadorIntegrado />
         <ToastContainer toasts={toasts} />
-        <Chat conversacion={conversacionActiva} user={user} onBack={() => setConversacionActiva(null)} />
+        <Chat conversacion={conversacionActiva} user={user} onBack={() => setConversacionActiva(null)} showToast={showToast} />
       </>
     );
   }

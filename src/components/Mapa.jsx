@@ -33,7 +33,7 @@ function distanciaKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function MapaTecnicos({ onCotizar, esTecnico }) {
+function MapaTecnicos({ onCotizar, esTecnico, showToast }) {
   const [tecnicos, setTecnicos] = useState([]);
   const [ubicacionCliente, setUbicacionCliente] = useState(null);
   const [geoEstado, setGeoEstado] = useState(() => (navigator.geolocation ? 'buscando' : 'no-soportado'));
@@ -53,9 +53,11 @@ function MapaTecnicos({ onCotizar, esTecnico }) {
         const data = await res.json();
         if (data.success) {
           setTecnicos(data.data.filter((t) => t.lat && t.lng));
+        } else {
+          showToast?.('No se pudieron cargar los técnicos del mapa', 'error');
         }
       } catch (err) {
-        console.error(err);
+        showToast?.('No se pudieron cargar los técnicos del mapa, revisa tu conexión', 'error');
       }
     };
     fetchTecnicos();

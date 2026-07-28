@@ -119,7 +119,7 @@ function ModalPublicar({ onClose, onPublicado, showToast }) {
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>Publicar un proyecto</h3>
-          <button style={styles.closeBtn} onClick={onClose}>✕</button>
+          <button style={styles.closeBtn} onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <div style={styles.modalBody}>
           <div style={styles.field}>
@@ -178,7 +178,10 @@ function DetallePost({ post, user, onClose, onCambiado, showToast }) {
       const res = await fetch(`${API}/publicaciones/${post.id}/comentarios`);
       const data = await res.json();
       if (data.success) setComentarios(data.data);
-    } catch (err) {}
+      else showToast('No se pudieron cargar los comentarios', 'error');
+    } catch (err) {
+      showToast('No se pudieron cargar los comentarios, revisa tu conexión', 'error');
+    }
     setCargandoComentarios(false);
   };
 
@@ -250,7 +253,7 @@ function DetallePost({ post, user, onClose, onCambiado, showToast }) {
       <div style={{ ...styles.modal, maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>Publicación</h3>
-          <button style={styles.closeBtn} onClick={onClose}>✕</button>
+          <button style={styles.closeBtn} onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <div style={styles.modalBody}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -335,15 +338,21 @@ function DetallePost({ post, user, onClose, onCambiado, showToast }) {
 function Comunidad({ user, onChangeView, onLogout, currentView, showToast }) {
   const [publicaciones, setPublicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(false);
   const [modalPublicar, setModalPublicar] = useState(false);
   const [postDetalle, setPostDetalle] = useState(null);
 
   const cargarPublicaciones = async () => {
+    setLoading(true);
+    setErrorCarga(false);
     try {
       const res = await fetch(`${API}/publicaciones`);
       const data = await res.json();
       if (data.success) setPublicaciones(data.data);
-    } catch (err) {}
+      else setErrorCarga(true);
+    } catch (err) {
+      setErrorCarga(true);
+    }
     setLoading(false);
   };
 
@@ -403,6 +412,13 @@ function Comunidad({ user, onChangeView, onLogout, currentView, showToast }) {
 
         {loading ? (
           <p style={{ color: '#555', fontSize: '13px' }}>Cargando...</p>
+        ) : errorCarga ? (
+          <div style={styles.empty}>
+            <p style={styles.emptyIcon}>⚠️</p>
+            <p style={styles.emptyText}>No se pudo cargar la comunidad</p>
+            <p style={styles.emptySub}>Revisa tu conexión e intenta de nuevo</p>
+            <button style={styles.emptyBtn} onClick={cargarPublicaciones}>Reintentar</button>
+          </div>
         ) : publicaciones.length > 0 ? (
           <div style={styles.grid}>
             {publicaciones.map((post) => {

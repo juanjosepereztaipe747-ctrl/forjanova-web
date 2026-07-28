@@ -31,8 +31,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
       const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`);
       const data = await res.json();
       if (data.success) setCotizaciones(data.data);
+      else showToast('No se pudieron cargar las cotizaciones: ' + data.error, 'error');
     } catch (err) {
-      console.error(err);
+      showToast('No se pudieron cargar las cotizaciones, revisa tu conexión', 'error');
     }
     setLoadingCotizaciones(false);
   };
@@ -49,8 +50,14 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
       }
     } catch (err) {}
 
-    const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`);
-    const data = await res.json();
+    let data;
+    try {
+      const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`);
+      data = await res.json();
+    } catch (err) {
+      showToast('No se pudo verificar la cotización aceptada, revisa tu conexión', 'error');
+      return;
+    }
     const cotAceptada = data.data?.find((c) => c.estado === 'aceptada');
     if (!cotAceptada) return;
 
@@ -157,7 +164,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                 <h3 style={styles.modalTitle}>⭐ Calificar trabajo</h3>
                 <p style={styles.modalSub}>{modalCalif.solicitud.titulo || modalCalif.solicitud.descripcion?.slice(0, 40)}</p>
               </div>
-              <button style={styles.closeBtn} onClick={() => setModalCalif(null)}>✕</button>
+              <button style={styles.closeBtn} onClick={() => setModalCalif(null)} aria-label="Cerrar">✕</button>
             </div>
             <div style={styles.modalBody}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -210,7 +217,7 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                 <h3 style={styles.modalTitle}>Cotizaciones recibidas</h3>
                 <p style={styles.modalSub}>{solicitudSeleccionada.titulo || solicitudSeleccionada.descripcion?.slice(0, 40)}</p>
               </div>
-              <button style={styles.closeBtn} onClick={() => setSolicitudSeleccionada(null)}>✕</button>
+              <button style={styles.closeBtn} onClick={() => setSolicitudSeleccionada(null)} aria-label="Cerrar">✕</button>
             </div>
             <div style={styles.modalBody}>
               {loadingCotizaciones ? (

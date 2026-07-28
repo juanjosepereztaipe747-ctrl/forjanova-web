@@ -11,7 +11,7 @@ const EXTENSIONES_MIME = {
   'audio/wav': 'wav',
 };
 
-function Chat({ conversacion, user, onBack }) {
+function Chat({ conversacion, user, onBack, showToast }) {
   const [mensajes, setMensajes] = useState([]);
   const [texto, setTexto] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ function Chat({ conversacion, user, onBack }) {
       const data = await res.json();
       if (data.success) setMensajes(data.data);
     } catch (err) {
-      console.error(err);
+      console.error('Error cargando mensajes:', err);
     }
   };
 
@@ -85,9 +85,11 @@ function Chat({ conversacion, user, onBack }) {
         cancelarFoto();
         cancelarAudio();
         fetchMensajes();
+      } else {
+        showToast?.('No se pudo enviar: ' + data.error, 'error');
       }
     } catch (err) {
-      console.error(err);
+      showToast?.('No se pudo enviar el mensaje, revisa tu conexión', 'error');
     }
     setLoading(false);
   };
@@ -279,7 +281,7 @@ function Chat({ conversacion, user, onBack }) {
       )}
 
       <div style={styles.inputWrap}>
-        <label style={styles.attachBtn}>
+        <label style={styles.attachBtn} aria-label="Adjuntar foto">
           📎
           <input type="file" accept="image/*" onChange={handleFotoChange} style={{ display: 'none' }} disabled={grabando} />
         </label>
@@ -288,6 +290,7 @@ function Chat({ conversacion, user, onBack }) {
           style={{ ...styles.micBtn, ...(grabando ? styles.micBtnActive : {}) }}
           onClick={grabando ? detenerGrabacion : iniciarGrabacion}
           disabled={!!fotoFile}
+          aria-label={grabando ? 'Detener grabación' : 'Grabar audio'}
         >
           {grabando ? '⏹' : '🎤'}
         </button>
