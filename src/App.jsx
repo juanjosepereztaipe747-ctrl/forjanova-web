@@ -324,6 +324,29 @@ function App() {
     }
   }, [token, user]);
 
+  useEffect(() => {
+    const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
+    if (!token || !esTecnico || (user?.lat && user?.lng)) return;
+    if (!navigator.geolocation || sessionStorage.getItem('ubicacion_intentada')) return;
+    sessionStorage.setItem('ubicacion_intentada', '1');
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      try {
+        const res = await fetch(`${API}/perfil/me`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ lat, lng }),
+        });
+        const data = await res.json();
+        if (data.success) handleUserUpdate({ lat, lng });
+      } catch (err) {
+        console.error('Error guardando ubicación automática:', err);
+      }
+    });
+  }, [token, user]);
+
   const Campanita = () => (
     <div style={estilosNotif.campanita} onClick={() => setMostrarNotif(true)}>
       🔔
