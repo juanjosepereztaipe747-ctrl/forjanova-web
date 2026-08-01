@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
+import { estadoPush, activarPush, desactivarPush } from '../push';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const SUPABASE_URL = 'https://alvgcnfkhmvrzehpwyjq.supabase.co';
@@ -14,6 +15,9 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
   const [actualizandoUbicacion, setActualizandoUbicacion] = useState(false);
   const [msg, setMsg] = useState('');
   const [form, setForm] = useState({ nombre: '', ciudad: '', especialidad: '', telefono: '', bio: '' });
+  const [pushEstado, setPushEstado] = useState('inactivo');
+  const [pushCargando, setPushCargando] = useState(false);
+  const [pushMsg, setPushMsg] = useState('');
 
   // Estado/publicaciones
   const [estados, setEstados] = useState([]);
@@ -28,7 +32,26 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
   const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
 
-  useEffect(() => { cargarPerfil(); cargarEstados(); }, []);
+  useEffect(() => { cargarPerfil(); cargarEstados(); estadoPush().then(setPushEstado); }, []);
+
+  const toggleNotificaciones = async () => {
+    setPushCargando(true); setPushMsg('');
+    try {
+      if (pushEstado === 'activo') {
+        const r = await desactivarPush(token);
+        if (r.success) { setPushEstado('inactivo'); setPushMsg('🔕 Notificaciones desactivadas'); }
+        else setPushMsg('Error: ' + r.error);
+      } else {
+        const r = await activarPush(token);
+        if (r.success) { setPushEstado('activo'); setPushMsg('✅ Notificaciones activadas'); }
+        else setPushMsg('Error: ' + r.error);
+      }
+    } catch (err) {
+      setPushMsg('Error configurando notificaciones');
+    }
+    setPushCargando(false);
+    setTimeout(() => setPushMsg(''), 3000);
+  };
 
   const cargarPerfil = async () => {
     setLoading(true);
@@ -231,6 +254,35 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
             )}
           </div>
         </div>
+
+        {pushEstado !== 'no-soportado' && (
+          <div style={s.card}>
+            <h3 style={{ ...s.cardTitle, marginBottom: '8px' }}>🔔 Notificaciones</h3>
+            <p style={{ fontSize: '12px', color: '#555', margin: '0 0 14px 0' }}>
+              {esTecnico ? 'Recibe un aviso al instante cuando haya una solicitud nueva en tu zona.' : 'Recibe un aviso al instante cuando un técnico te envíe una cotización.'}
+            </p>
+            {pushEstado === 'denegado' ? (
+              <p style={{ fontSize: '12px', color: '#f44336', margin: 0 }}>
+                🚫 Bloqueaste las notificaciones para este sitio. Para activarlas, habilítalas desde los ajustes/permisos del navegador y vuelve a esta página.
+              </p>
+            ) : (
+              <button
+                onClick={toggleNotificaciones}
+                disabled={pushCargando}
+                style={{
+                  ...s.toggleBtn,
+                  background: pushEstado === 'activo' ? '#0a2a0a' : '#2a1a0a',
+                  color: pushEstado === 'activo' ? '#4caf50' : '#ffa726',
+                  borderColor: pushEstado === 'activo' ? '#4caf50' : '#ffa726',
+                  opacity: pushCargando ? 0.6 : 1,
+                }}
+              >
+                {pushCargando ? '⏳ Un momento...' : pushEstado === 'activo' ? '✅ Notificaciones activas' : '🔕 Activar notificaciones'}
+              </button>
+            )}
+            {pushMsg && <p style={{ fontSize: '12px', color: pushMsg.startsWith('Error') ? '#f44336' : '#4caf50', margin: '10px 0 0 0' }}>{pushMsg}</p>}
+          </div>
+        )}
 
         {esTecnico && (
           <div style={s.statsRow}>

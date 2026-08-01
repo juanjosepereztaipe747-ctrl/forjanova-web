@@ -19,10 +19,18 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const solicitudId = event.notification.data?.solicitud_id;
+  const targetPath = solicitudId ? `/?solicitud=${solicitudId}` : '/';
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {
-      if (clientsList.length > 0) return clientsList[0].focus();
-      return clients.openWindow('/');
+      for (const client of clientsList) {
+        if ('focus' in client) {
+          client.navigate(targetPath).catch(() => {});
+          return client.focus();
+        }
+      }
+      return clients.openWindow(targetPath);
     })
   );
 });

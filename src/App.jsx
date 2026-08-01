@@ -9,43 +9,10 @@ import Chat from './components/Chat';
 import Admin from './components/Admin';
 import Perfil from './components/Perfil';
 import Comunidad from './components/Comunidad';
+import { registrarPushSilencioso } from './push';
 import './App.css';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
-}
-
-async function registrarPush(authToken) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  if (Notification.permission === 'denied') return;
-
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
-
-    const reg = await navigator.serviceWorker.register('/sw.js');
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
-      });
-    }
-
-    await fetch(`${API}/push/subscribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-      body: JSON.stringify(sub),
-    });
-  } catch (err) {
-    console.error('Error registrando push:', err);
-  }
-}
 
 function esNavegadorIntegrado() {
   const ua = navigator.userAgent || '';
@@ -131,6 +98,10 @@ function App() {
   const [conversacionActiva, setConversacionActiva] = useState(null);
   const [notificaciones, setNotificaciones] = useState([]);
   const [mostrarNotif, setMostrarNotif] = useState(false);
+  const [solicitudDesdeNotif, setSolicitudDesdeNotif] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('solicitud') || null;
+  });
   const notifInterval = useRef(null);
   const toastId = useRef(0);
 
@@ -308,12 +279,19 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (solicitudDesdeNotif) {
+      setCurrentView('home');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [solicitudDesdeNotif]);
+
+  useEffect(() => {
     if (token) {
       fetchSolicitudes();
       fetchMySolicitudes();
       fetchNotificaciones();
       notifInterval.current = setInterval(fetchNotificaciones, 30000);
-      registrarPush(token);
+      registrarPushSilencioso(token);
     }
     return () => clearInterval(notifInterval.current);
   }, [token]);
@@ -399,7 +377,17 @@ function App() {
       {mostrarNotif && <NotificacionesPanel notificaciones={notificaciones} onCerrar={() => setMostrarNotif(false)} onMarcarLeidas={marcarLeidas} />}
 
       {currentView === 'home' && (
-        <Home solicitudes={solicitudes} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onCotizar={handleCotizar} currentView={currentView} showToast={showToast} />
+        <Home
+          solicitudes={solicitudes}
+          user={user}
+          onChangeView={setCurrentView}
+          onLogout={handleLogout}
+          onCotizar={handleCotizar}
+          currentView={currentView}
+          showToast={showToast}
+          abrirSolicitudId={solicitudDesdeNotif}
+          onSolicitudAbierta={() => setSolicitudDesdeNotif(null)}
+        />
       )}
       {currentView === 'crear' && (
         <CrearSolicitud onChangeView={setCurrentView} onCreateSolicitud={handleCreateSolicitud} onLogout={handleLogout} user={user} showToast={showToast} />

@@ -157,7 +157,7 @@ function ModalTecnico({ tecnico, onClose }) {
   );
 }
 
-function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentView, showToast }) {
+function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentView, showToast, abrirSolicitudId, onSolicitudAbierta }) {
   const [modalSol, setModalSol] = useState(null);
   const [modalTecnico, setModalTecnico] = useState(null);
   const [toast, setToast] = useState('');
@@ -177,6 +177,18 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   useEffect(() => {
     if (vistaActiva === 'tecnicos') cargarTecnicos();
   }, [vistaActiva]);
+
+  useEffect(() => {
+    if (!abrirSolicitudId || solicitudes.length === 0) return;
+    const sol = solicitudes.find((s) => String(s.id) === String(abrirSolicitudId));
+    if (sol) {
+      setVistaActiva('solicitudes');
+      setModalSol(sol);
+    } else {
+      showToast?.('Esa solicitud ya no está disponible', 'error');
+    }
+    onSolicitudAbierta?.();
+  }, [abrirSolicitudId, solicitudes]);
 
   const cargarTecnicos = async () => {
     try {
