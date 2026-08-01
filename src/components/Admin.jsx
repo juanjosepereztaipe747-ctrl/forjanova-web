@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer } from '@react-google-maps/api';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { GoogleMap, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
+import { MarkerClusterer } from '@googlemaps/markerclusterer';
 
 const API = `${import.meta.env.VITE_API_URL}/api/admin`;
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-const MAP_LIBRARIES = ['visualization'];
+const MAP_LIBRARIES = [];
 const mapContainerStyle = { width: '100%', height: '520px', borderRadius: '12px' };
 const defaultCenter = { lat: -12.5, lng: -75.5 }; // centrado entre Lima/Ica/Huancayo
 const mapDarkStyle = [
@@ -13,6 +14,20 @@ const mapDarkStyle = [
   { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2a2a2a' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0f0f0f' }] },
 ];
+
+// pin tipo "gota" con un icono blanco adentro (técnico = llave, cliente = casa)
+const ICON_PATHS = {
+  tecnico: 'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
+  cliente: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
+};
+
+function pinIconUrl(color, tipo) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 30 40">
+    <path d="M15 0C6.7 0 0 6.7 0 15c0 10.6 15 25 15 25s15-14.4 15-25C30 6.7 23.3 0 15 0z" fill="${color}" stroke="#0f0f0f" stroke-width="1.5"/>
+    <g transform="translate(6.5,5.5) scale(0.7)"><path d="${ICON_PATHS[tipo]}" fill="#fff"/></g>
+  </svg>`;
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+}
 
 function normalizar(txt) {
   return (txt || '').toString().trim().toLowerCase();
@@ -37,14 +52,20 @@ function Admin({ user, onLogout, showToast }) {
   const [filtroEstadoMapa, setFiltroEstadoMapa] = useState('abierta');
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
-  const [mostrarHeatmap, setMostrarHeatmap] = useState(false);
   const [pinSeleccionado, setPinSeleccionado] = useState(null);
+
+  const mapRef = useRef(null);
+  const tecnicosClustererRef = useRef(null);
+  const solicitudesClustererRef = useRef(null);
 
   const { isLoaded: mapaCargado } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: MAP_LIBRARIES,
   });
+
+  const onMapLoad = useCallback((map) => { mapRef.current = map; }, []);
+  const onMapUnmount = useCallback(() => { mapRef.current = null; }, []);
 
   const token = localStorage.getItem('token');
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
@@ -169,7 +190,7 @@ function Admin({ user, onLogout, showToast }) {
   const tecnicosMapa = useMemo(() => {
     return usuarios.filter((u) => {
       if (!(u.rol === 'tecnico' || u.rol === 'ambos')) return false;
-      if (!u.lat || !u.lng) return false;
+      if (!u.lat || !u.lng || isNaN(parseFloat(u.lat)) || isNaN(parseFloat(u.lng))) return false;
       if (filtroZonaMapa !== 'todas' && normalizar(u.ciudad) !== normalizar(filtroZonaMapa)) return false;
       if (filtroServicioMapa !== 'todos' && normalizar(u.especialidad) !== normalizar(filtroServicioMapa)) return false;
       if ((filtroFechaDesde || filtroFechaHasta) && !enRangoFecha(u.created_at)) return false;
@@ -179,7 +200,7 @@ function Admin({ user, onLogout, showToast }) {
 
   const solicitudesMapa = useMemo(() => {
     return solicitudes.filter((s) => {
-      if (!s.lat || !s.lng) return false;
+      if (!s.lat || !s.lng || isNaN(parseFloat(s.lat)) || isNaN(parseFloat(s.lng))) return false;
       if (filtroEstadoMapa !== 'todos' && s.estado !== filtroEstadoMapa) return false;
       if (filtroZonaMapa !== 'todas' && !normalizar(s.ubicacion).includes(normalizar(filtroZonaMapa))) return false;
       if (filtroServicioMapa !== 'todos' && normalizar(s.servicio) !== normalizar(filtroServicioMapa)) return false;
@@ -188,9 +209,72 @@ function Admin({ user, onLogout, showToast }) {
     });
   }, [solicitudes, filtroZonaMapa, filtroServicioMapa, filtroEstadoMapa, filtroFechaDesde, filtroFechaHasta]);
 
-  const heatmapData = useMemo(() => {
-    if (!mapaCargado || !window.google) return [];
-    return solicitudesMapa.map((s) => new window.google.maps.LatLng(parseFloat(s.lat), parseFloat(s.lng)));
+  // clusterer de técnicos (pin azul con llave)
+  useEffect(() => {
+    if (!mapaCargado || !mapRef.current || !window.google) return undefined;
+    const map = mapRef.current;
+
+    const markers = tecnicosMapa.map((t) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: parseFloat(t.lat), lng: parseFloat(t.lng) },
+        icon: {
+          url: pinIconUrl('#2196f3', 'tecnico'),
+          scaledSize: new window.google.maps.Size(30, 40),
+          anchor: new window.google.maps.Point(15, 40),
+        },
+      });
+      marker.addListener('click', () => setPinSeleccionado({ tipo: 'tecnico', data: t }));
+      return marker;
+    });
+
+    if (tecnicosClustererRef.current) {
+      tecnicosClustererRef.current.clearMarkers();
+      tecnicosClustererRef.current.setMap(null);
+    }
+    tecnicosClustererRef.current = new MarkerClusterer({ map, markers });
+
+    return () => {
+      if (tecnicosClustererRef.current) {
+        tecnicosClustererRef.current.clearMarkers();
+        tecnicosClustererRef.current.setMap(null);
+        tecnicosClustererRef.current = null;
+      }
+      markers.forEach((m) => m.setMap(null));
+    };
+  }, [mapaCargado, tecnicosMapa]);
+
+  // clusterer de solicitudes/clientes (pin rojo con casa)
+  useEffect(() => {
+    if (!mapaCargado || !mapRef.current || !window.google) return undefined;
+    const map = mapRef.current;
+
+    const markers = solicitudesMapa.map((sol) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: parseFloat(sol.lat), lng: parseFloat(sol.lng) },
+        icon: {
+          url: pinIconUrl('#f44336', 'cliente'),
+          scaledSize: new window.google.maps.Size(30, 40),
+          anchor: new window.google.maps.Point(15, 40),
+        },
+      });
+      marker.addListener('click', () => setPinSeleccionado({ tipo: 'solicitud', data: sol }));
+      return marker;
+    });
+
+    if (solicitudesClustererRef.current) {
+      solicitudesClustererRef.current.clearMarkers();
+      solicitudesClustererRef.current.setMap(null);
+    }
+    solicitudesClustererRef.current = new MarkerClusterer({ map, markers });
+
+    return () => {
+      if (solicitudesClustererRef.current) {
+        solicitudesClustererRef.current.clearMarkers();
+        solicitudesClustererRef.current.setMap(null);
+        solicitudesClustererRef.current = null;
+      }
+      markers.forEach((m) => m.setMap(null));
+    };
   }, [mapaCargado, solicitudesMapa]);
 
   const rolColor = (rol) => {
@@ -278,39 +362,19 @@ function Admin({ user, onLogout, showToast }) {
                   </select>
                   <input style={s.filterSelect} type="date" value={filtroFechaDesde} onChange={(e) => setFiltroFechaDesde(e.target.value)} title="Desde" />
                   <input style={s.filterSelect} type="date" value={filtroFechaHasta} onChange={(e) => setFiltroFechaHasta(e.target.value)} title="Hasta" />
-                  <button
-                    style={{ ...s.filterSelect, cursor: 'pointer', background: mostrarHeatmap ? '#2a1508' : '#111', color: mostrarHeatmap ? '#ff6b1a' : '#aaa', border: mostrarHeatmap ? '1px solid #ff6b1a' : '1px solid #333' }}
-                    onClick={() => setMostrarHeatmap((v) => !v)}
-                  >
-                    {mostrarHeatmap ? '🔥 Heatmap ON' : '🔥 Heatmap OFF'}
-                  </button>
                 </div>
 
                 {!mapaCargado ? (
                   <p style={{ color: '#555', textAlign: 'center', padding: '40px' }}>Cargando mapa...</p>
                 ) : (
-                  <GoogleMap mapContainerStyle={mapContainerStyle} center={defaultCenter} zoom={6} options={{ styles: mapDarkStyle }}>
-                    {mostrarHeatmap && heatmapData.length > 0 && (
-                      <HeatmapLayer data={heatmapData} options={{ radius: 30 }} />
-                    )}
-
-                    {!mostrarHeatmap && tecnicosMapa.map((t) => (
-                      <Marker
-                        key={`tec-${t.id}`}
-                        position={{ lat: parseFloat(t.lat), lng: parseFloat(t.lng) }}
-                        icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
-                        onClick={() => setPinSeleccionado({ tipo: 'tecnico', data: t })}
-                      />
-                    ))}
-
-                    {!mostrarHeatmap && solicitudesMapa.map((sol) => (
-                      <Marker
-                        key={`sol-${sol.id}`}
-                        position={{ lat: parseFloat(sol.lat), lng: parseFloat(sol.lng) }}
-                        icon={{ url: sol.urgente ? 'http://maps.google.com/mapfiles/ms/icons/red-pushpin.png' : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' }}
-                        onClick={() => setPinSeleccionado({ tipo: 'solicitud', data: sol })}
-                      />
-                    ))}
+                  <GoogleMap
+                    mapContainerStyle={mapContainerStyle}
+                    center={defaultCenter}
+                    zoom={6}
+                    options={{ styles: mapDarkStyle }}
+                    onLoad={onMapLoad}
+                    onUnmount={onMapUnmount}
+                  >
 
                     {pinSeleccionado && (
                       <InfoWindow
@@ -344,7 +408,6 @@ function Admin({ user, onLogout, showToast }) {
                 <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '12px', color: '#666', flexWrap: 'wrap' }}>
                   <span>🔵 Técnicos ({tecnicosMapa.length})</span>
                   <span>🔴 Solicitudes ({solicitudesMapa.length})</span>
-                  {mostrarHeatmap && <span>🔥 Vista heatmap de densidad de demanda</span>}
                 </div>
 
                 {tecnicosMapa.length === 0 && solicitudesMapa.length === 0 && (
