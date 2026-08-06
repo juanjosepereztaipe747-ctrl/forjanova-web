@@ -89,6 +89,7 @@ function NotificacionesPanel({ notificaciones, onCerrar, onMarcarLeidas }) {
 function App() {
   const [token, setToken] = useState(null);
   const [mostrarLanding, setMostrarLanding] = useState(true);
+  const [vistaAuthInicial, setVistaAuthInicial] = useState('login');
   const [user, setUser] = useState(null);
   const [currentView, setCurrentView] = useState('home');
   const [solicitudes, setSolicitudes] = useState([]);
@@ -336,7 +337,7 @@ function App() {
     <>
       <BannerNavegadorIntegrado />
       <ToastContainer toasts={toasts} />
-      <Landing onEntrar={() => setMostrarLanding(false)} />
+      <Landing onEntrar={(vista) => { setVistaAuthInicial(vista || 'login'); setMostrarLanding(false); }} />
     </>
   );
 
@@ -344,7 +345,7 @@ function App() {
     <>
       <BannerNavegadorIntegrado />
       <ToastContainer toasts={toasts} />
-      <Login onLogin={handleLogin} loading={loading} />
+      <Login onLogin={handleLogin} loading={loading} vistaInicial={vistaAuthInicial} />
     </>
   );
 

@@ -2,8 +2,8 @@ import { useState } from 'react';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
-function Login({ onLogin, loading }) {
-  const [view, setView] = useState('login');
+function Login({ onLogin, loading, vistaInicial = 'login' }) {
+  const [view, setView] = useState(vistaInicial);
   const [formData, setFormData] = useState({
     email: '', password: '', nombre: '', confirmar: '',
     rol: 'cliente', especialidad: '', ciudad: '', telefono: '',

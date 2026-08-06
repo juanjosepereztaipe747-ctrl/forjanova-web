@@ -1,8 +1,48 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 
+const API = `${import.meta.env.VITE_API_URL}/api`;
+
+const ICONOS_SERVICIO = [
+  { match: /horno/i, icono: '🍞' },
+  { match: /parrilla|cocina/i, icono: '🔥' },
+  { match: /solda/i, icono: '⚡' },
+  { match: /estructura|reja|baranda|fierro/i, icono: '🏗️' },
+  { match: /forja/i, icono: '🔨' },
+];
+
+function iconoServicio(servicio) {
+  const encontrado = ICONOS_SERVICIO.find((s) => s.match.test(servicio || ''));
+  return encontrado ? encontrado.icono : '🔧';
+}
+
+function tiempoRelativo(fecha) {
+  const minutos = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000);
+  if (minutos < 60) return `Hace ${Math.max(minutos, 1)} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `Hace ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return `Hace ${dias} d`;
+}
+
+function esNuevo(fecha) {
+  return Date.now() - new Date(fecha).getTime() < 24 * 60 * 60 * 1000;
+}
+
+function agruparPorSector(fotos) {
+  const grupos = {};
+  fotos.forEach((foto) => {
+    const sector = foto.usuarios?.especialidad || 'Otros trabajos';
+    if (!grupos[sector]) grupos[sector] = [];
+    grupos[sector].push(foto);
+  });
+  return Object.entries(grupos).map(([nombre, fotos]) => ({ nombre, fotos }));
+}
+
 function Landing({ onEntrar }) {
   const [trabajosReales, setTrabajosReales] = useState([]);
+  const [solicitudesRecientes, setSolicitudesRecientes] = useState([]);
+  const [carpetaAbierta, setCarpetaAbierta] = useState(null);
 
   useEffect(() => {
     document.title = 'Forjanova Servicios Ya — Encuentra tu técnico hoy';
@@ -18,6 +58,21 @@ function Landing({ onEntrar }) {
       if (data) setTrabajosReales(data);
     };
     cargarTrabajos();
+  }, []);
+
+  useEffect(() => {
+    const cargarRecientes = async () => {
+      try {
+        const res = await fetch(`${API}/solicitudes/recientes`);
+        const json = await res.json();
+        if (json.success) setSolicitudesRecientes(json.data);
+      } catch {
+        // silencioso: la landing sigue funcionando sin esta sección
+      }
+    };
+    cargarRecientes();
+    const interval = setInterval(cargarRecientes, 90000);
+    return () => clearInterval(interval);
   }, []);
 
   const WHATSAPP_NUM = '51929336337';
@@ -64,7 +119,9 @@ function Landing({ onEntrar }) {
           .fn-pain-grid { grid-template-columns: 1fr !important; }
           .fn-trust-grid { grid-template-columns: 1fr !important; }
           .fn-cat-grid { grid-template-columns: 1fr !important; }
+          .fn-recientes-grid { grid-template-columns: 1fr 1fr !important; }
           .fn-galeria-grid { grid-template-columns: 1fr !important; }
+          .fn-carpetas-grid { grid-template-columns: 1fr 1fr !important; }
           .fn-footer-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
           .fn-contact-grid { grid-template-columns: 1fr !important; }
         }
@@ -75,7 +132,7 @@ function Landing({ onEntrar }) {
           <span style={s.navBrandOrange}>FORJANOVA</span>
           <span style={s.navBrandWhite}> SERVICIOS YA</span>
         </div>
-        <button style={s.navCta} className="fn-cta" onClick={onEntrar}>Entrar a la app</button>
+        <button style={s.navCta} className="fn-cta" onClick={() => onEntrar()}>Entrar a la app</button>
       </nav>
 
       <div className="fn-heat-bar" />
@@ -94,7 +151,7 @@ function Landing({ onEntrar }) {
             recibes cotizaciones, eliges y coordinas todo desde el chat.
           </p>
           <div style={s.heroBtns}>
-            <button style={s.ctaPrimary} className="fn-cta" onClick={onEntrar}>Entrar a la app →</button>
+            <button style={s.ctaPrimary} className="fn-cta" onClick={() => onEntrar()}>Entrar a la app →</button>
           </div>
           <p style={s.heroTagline}>"El fuego no pide permiso. Nosotros tampoco."</p>
         </div>
@@ -111,6 +168,27 @@ function Landing({ onEntrar }) {
           </div>
         </div>
       </section>
+
+      {solicitudesRecientes.length > 0 && (
+        <section style={s.section}>
+          <span style={s.eyebrow}>TRABAJOS RECIENTES</span>
+          <h2 style={{ ...s.sectionTitle, marginTop: '12px' }} className="fn-hero-title">Últimas solicitudes publicadas</h2>
+          <div className="fn-heat-bar" style={{ width: '60px', margin: '20px 0 32px 0' }} />
+          <div style={s.recientesGrid} className="fn-recientes-grid">
+            {solicitudesRecientes.map((sol) => (
+              <div key={sol.id} style={s.recienteCard} className="fn-card">
+                {esNuevo(sol.created_at) && <span style={s.recienteBadge}>NUEVO</span>}
+                <span style={s.recienteIcon}>{iconoServicio(sol.servicio)}</span>
+                <p style={s.recienteTitulo}>{sol.titulo}</p>
+                <p style={s.recienteMeta}>📍 {sol.ubicacion}</p>
+                <p style={s.recienteMeta}>
+                  {tiempoRelativo(sol.created_at)} · {sol.cotizaciones_count} cotizaci{sol.cotizaciones_count === 1 ? 'ón' : 'ones'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section style={s.sectionAlt}>
         <span style={s.eyebrow}>NUESTRA HISTORIA</span>
@@ -221,20 +299,48 @@ function Landing({ onEntrar }) {
           <span style={s.eyebrow}>TRABAJOS REALES</span>
           <h2 style={{ ...s.sectionTitle, marginTop: '12px' }} className="fn-hero-title">Lo que ya se está haciendo</h2>
           <div className="fn-heat-bar" style={{ width: '60px', margin: '20px 0 32px 0' }} />
-          <div style={s.galeriaGrid} className="fn-galeria-grid">
-            {trabajosReales.map((foto) => (
-              <div key={foto.id} style={s.galeriaCard} className="fn-card">
-                <img src={foto.url} alt={foto.descripcion || 'Trabajo realizado'} style={s.galeriaImg} />
-                <div style={s.galeriaInfo}>
-                  {foto.descripcion && <p style={s.galeriaDesc}>{foto.descripcion}</p>}
-                  <p style={s.galeriaTecnico}>
-                    🔧 {foto.usuarios?.nombre || 'Técnico Forjanova'}
-                    {foto.usuarios?.especialidad && ` · ${foto.usuarios.especialidad}`}
-                  </p>
+
+          {!carpetaAbierta ? (
+            <div style={s.carpetasGrid} className="fn-carpetas-grid">
+              {agruparPorSector(trabajosReales).map((carpeta) => (
+                <div
+                  key={carpeta.nombre}
+                  style={s.carpetaCard}
+                  className="fn-card"
+                  onClick={() => setCarpetaAbierta(carpeta.nombre)}
+                >
+                  <img src={carpeta.fotos[0].url} alt={carpeta.nombre} style={s.carpetaImg} />
+                  <div style={s.carpetaInfo}>
+                    <p style={s.carpetaNombre}>📁 {carpeta.nombre}</p>
+                    <p style={s.carpetaCount}>{carpeta.fotos.length} foto{carpeta.fotos.length === 1 ? '' : 's'}</p>
+                  </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <button style={s.volverBtn} onClick={() => setCarpetaAbierta(null)}>← Todas las categorías</button>
+              <div style={s.galeriaGrid} className="fn-galeria-grid">
+                {trabajosReales
+                  .filter((foto) => (foto.usuarios?.especialidad || 'Otros trabajos') === carpetaAbierta)
+                  .map((foto) => (
+                    <div key={foto.id} style={s.galeriaCard} className="fn-card">
+                      <div style={s.galeriaImgWrap}>
+                        <img src={foto.url} alt={foto.descripcion || 'Trabajo realizado'} style={s.galeriaImg} />
+                        <button style={s.cotizarBtn} onClick={() => onEntrar('registro')}>Cotizar este trabajo</button>
+                      </div>
+                      <div style={s.galeriaInfo}>
+                        {foto.descripcion && <p style={s.galeriaDesc}>{foto.descripcion}</p>}
+                        <p style={s.galeriaTecnico}>
+                          🔧 {foto.usuarios?.nombre || 'Técnico Forjanova'}
+                          {foto.usuarios?.especialidad && ` · ${foto.usuarios.especialidad}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </section>
       )}
 
@@ -386,6 +492,12 @@ const s = {
   trustIcon: { fontSize: '24px' },
   trustTitle: { fontSize: '14px', fontWeight: 600, color: OFFWHITE, margin: '12px 0 8px 0' },
   trustText: { fontSize: '12.5px', color: STEEL, lineHeight: 1.6, margin: 0 },
+  recientesGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '18px' },
+  recienteCard: { position: 'relative', background: ASH, border: '1px solid #2a231f', borderRadius: '14px', padding: '18px', transition: 'border-color 0.2s ease' },
+  recienteBadge: { position: 'absolute', top: '14px', right: '14px', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: ORANGE, background: `${ORANGE}1A`, letterSpacing: '0.5px', padding: '3px 7px', borderRadius: '4px' },
+  recienteIcon: { fontSize: '22px' },
+  recienteTitulo: { fontSize: '13.5px', fontWeight: 600, color: OFFWHITE, lineHeight: 1.4, margin: '12px 0 10px 0' },
+  recienteMeta: { fontSize: '11.5px', color: STEEL, margin: '0 0 4px 0' },
   cardsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' },
   card: { background: ASH, border: '1px solid #2a231f', borderRadius: '16px', padding: '32px', transition: 'border-color 0.2s ease' },
   cardEyebrow: { fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: ORANGE, letterSpacing: '1.5px', fontWeight: 500 },
@@ -397,10 +509,19 @@ const s = {
   catDesc: { fontSize: '12.5px', color: STEEL, lineHeight: 1.6, margin: 0 },
   galeriaGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' },
   galeriaCard: { background: ASH, border: '1px solid #2a231f', borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.2s ease' },
+  galeriaImgWrap: { position: 'relative' },
   galeriaImg: { width: '100%', height: '190px', objectFit: 'cover', display: 'block' },
   galeriaInfo: { padding: '14px 16px' },
   galeriaDesc: { fontSize: '13px', color: OFFWHITE, lineHeight: 1.5, margin: '0 0 8px 0' },
   galeriaTecnico: { fontSize: '11.5px', color: ORANGE, margin: 0, fontFamily: "'JetBrains Mono', monospace" },
+  cotizarBtn: { position: 'absolute', bottom: 0, left: 0, right: 0, background: `${ORANGE}E6`, color: '#241E1A', border: 'none', padding: '10px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' },
+  carpetasGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' },
+  carpetaCard: { background: ASH, border: '1px solid #2a231f', borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.2s ease' },
+  carpetaImg: { width: '100%', height: '140px', objectFit: 'cover', display: 'block' },
+  carpetaInfo: { padding: '14px 16px' },
+  carpetaNombre: { fontSize: '14px', fontWeight: 600, color: OFFWHITE, margin: '0 0 4px 0' },
+  carpetaCount: { fontSize: '12px', color: STEEL, margin: 0, fontFamily: "'JetBrains Mono', monospace" },
+  volverBtn: { background: 'transparent', border: '1px solid #2a231f', color: ORANGE, fontSize: '12.5px', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px' },
   faqList: { maxWidth: '760px', display: 'flex', flexDirection: 'column', gap: '2px' },
   faqItem: { borderBottom: '1px solid #2a231f' },
   faqQ: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 4px', cursor: 'pointer', fontSize: '14.5px', fontWeight: 600, color: OFFWHITE, transition: 'color 0.2s ease' },
