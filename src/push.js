@@ -75,17 +75,25 @@ export async function desactivarPush(authToken) {
 
 // registro silencioso, best-effort (se usa al hacer login; no molesta si falla o si el usuario ya decidió que no)
 export async function registrarPushSilencioso(authToken) {
-  if (!pushSoportado() || Notification.permission === 'denied') return;
+  // Exigimos el permiso ya concedido: con eso subscribe() no abre ningún popup.
+  if (!pushSoportado() || Notification.permission !== 'granted') return;
   try {
-    const reg = await navigator.serviceWorker.getRegistration('/sw.js');
-    const sub = reg ? await reg.pushManager.getSubscription() : null;
-    if (sub) {
-      await fetch(`${API}/push/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify(sub),
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      // La suscripción se pudo vencer o perder (datos del sitio borrados, reinstalación).
+      // Sin recrearla acá el usuario queda sin push para siempre y sin enterarse.
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
       });
     }
+
+    await fetch(`${API}/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      body: JSON.stringify(sub),
+    });
   } catch (err) {
     console.error('Error registrando push:', err);
   }
