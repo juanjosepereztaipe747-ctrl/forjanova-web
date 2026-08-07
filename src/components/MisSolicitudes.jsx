@@ -28,7 +28,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
     setSolicitudSeleccionada(sol);
     setLoadingCotizaciones(true);
     try {
-      const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`);
+      const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
       const data = await res.json();
       if (data.success) setCotizaciones(data.data);
       else showToast('No se pudieron cargar las cotizaciones: ' + data.error, 'error');
@@ -52,7 +54,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
 
     let data;
     try {
-      const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`);
+      const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
       data = await res.json();
     } catch (err) {
       showToast('No se pudo verificar la cotización aceptada, revisa tu conexión', 'error');
@@ -143,7 +147,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
         body: JSON.stringify({ estado: 'aceptada' }),
       });
       await onAbrirChat(solicitudSeleccionada.id, cot.tecnico_id);
-      const res = await fetch(`${API}/solicitudes/${solicitudSeleccionada.id}/cotizaciones`);
+      const res = await fetch(`${API}/solicitudes/${solicitudSeleccionada.id}/cotizaciones`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
       const data = await res.json();
       if (data.success) setCotizaciones(data.data);
       setSolicitudSeleccionada({ ...solicitudSeleccionada, estado: 'aceptada' });
