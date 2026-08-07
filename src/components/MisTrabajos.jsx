@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
-function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat, currentView, showToast }) {
+function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat, currentView, showToast, mensajesNoLeidos = 0 }) {
   const pendientes = trabajos.filter((t) => t.estado === 'pendiente');
   const aceptadas = trabajos.filter((t) => t.estado === 'aceptada');
   const rechazadas = trabajos.filter((t) => t.estado === 'rechazada');
@@ -206,6 +206,9 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
         {(user?.rol === 'tecnico' || user?.rol === 'ambos') && (
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
+        <button style={{ ...styles.navBtn, ...(currentView === 'mensajes' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mensajes')}>
+          💬 Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
+        </button>
         <button style={styles.navBtn} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>

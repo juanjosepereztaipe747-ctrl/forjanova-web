@@ -3,7 +3,7 @@ import { useState } from 'react';
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const WHATSAPP_NUM = '51929336337';
 
-function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast }) {
+function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast, currentView, mensajesNoLeidos = 0 }) {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
   const [cotizaciones, setCotizaciones] = useState([]);
   const [loadingCotizaciones, setLoadingCotizaciones] = useState(false);
@@ -280,6 +280,9 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
       <div style={styles.navbar}>
         <button style={styles.navBtn} onClick={() => onChangeView('home')}>Explorar</button>
         <button style={{ ...styles.navBtn, ...styles.navBtnActive }} onClick={() => onChangeView('mis')}>Mis solicitudes</button>
+        <button style={{ ...styles.navBtn, ...(currentView === 'mensajes' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mensajes')}>
+          💬 Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
+        </button>
         <button style={styles.navBtn} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>

@@ -6,6 +6,7 @@ import CrearSolicitud from './components/CrearSolicitud';
 import MisSolicitudes from './components/MisSolicitudes';
 import MisTrabajos from './components/MisTrabajos';
 import Chat from './components/Chat';
+import Mensajes from './components/Mensajes';
 import Admin from './components/Admin';
 import Perfil from './components/Perfil';
 import Comunidad from './components/Comunidad';
@@ -97,13 +98,20 @@ function App() {
   const [trabajos, setTrabajos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [conversacionActiva, setConversacionActiva] = useState(null);
+  const [conversaciones, setConversaciones] = useState([]);
+  const [cargandoConversaciones, setCargandoConversaciones] = useState(false);
   const [notificaciones, setNotificaciones] = useState([]);
   const [mostrarNotif, setMostrarNotif] = useState(false);
   const [solicitudDesdeNotif, setSolicitudDesdeNotif] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('solicitud') || null;
   });
+  // Guardado en un ref, no en estado: se consume una sola vez al abrir la app.
+  const conversacionDesdeNotif = useRef(
+    new URLSearchParams(window.location.search).get('conversacion') || null
+  );
   const notifInterval = useRef(null);
+  const chatsInterval = useRef(null);
   const toastId = useRef(0);
 
   const [toasts, setToasts] = useState([]);
@@ -115,6 +123,21 @@ function App() {
   }, []);
 
   const noLeidas = notificaciones.filter((n) => !n.leida).length;
+  const mensajesNoLeidos = conversaciones.reduce((suma, c) => suma + (c.no_leidos || 0), 0);
+
+  const fetchConversaciones = useCallback(async () => {
+    const authToken = localStorage.getItem('token');
+    if (!authToken) return;
+    setCargandoConversaciones(true);
+    try {
+      const res = await fetch(`${API}/mis-conversaciones`, { headers: { Authorization: `Bearer ${authToken}` } });
+      const data = await res.json();
+      if (data.success) setConversaciones(data.data);
+    } catch (err) {
+      console.error('Error cargando conversaciones:', err);
+    }
+    setCargandoConversaciones(false);
+  }, []);
 
   const fetchNotificaciones = async () => {
     const authToken = localStorage.getItem('token');
@@ -208,10 +231,22 @@ function App() {
         body: JSON.stringify({ solicitud_id: solicitudId, tecnico_id: tecnicoId }),
       });
       const data = await res.json();
-      if (data.success) setConversacionActiva(data.data);
+      if (data.success) {
+        setConversacionActiva(data.data);
+        fetchConversaciones();
+      } else {
+        showToast('No se pudo abrir el chat: ' + data.error, 'error');
+      }
     } catch (err) {
       showToast('Error: ' + err.message, 'error');
     }
+  };
+
+  // Al salir del chat refrescamos la bandeja: así el hilo que acabás de leer
+  // pierde el badge y sube al tope con tu último mensaje.
+  const handleCerrarChat = () => {
+    setConversacionActiva(null);
+    fetchConversaciones();
   };
 
   const handleUserUpdate = (datosNuevos) => {
@@ -262,8 +297,10 @@ function App() {
     setMySolicitudes([]);
     setTrabajos([]);
     setConversacionActiva(null);
+    setConversaciones([]);
     setNotificaciones([]);
     clearInterval(notifInterval.current);
+    clearInterval(chatsInterval.current);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setCurrentView('home');
@@ -291,10 +328,37 @@ function App() {
       fetchSolicitudes();
       fetchMySolicitudes();
       fetchNotificaciones();
+      fetchConversaciones();
       notifInterval.current = setInterval(fetchNotificaciones, 30000);
+      // Más seguido que las notificaciones: es el badge de mensajes nuevos.
+      chatsInterval.current = setInterval(fetchConversaciones, 15000);
       registrarPushSilencioso(token);
     }
-    return () => clearInterval(notifInterval.current);
+    return () => {
+      clearInterval(notifInterval.current);
+      clearInterval(chatsInterval.current);
+    };
+  }, [token, fetchConversaciones]);
+
+  // Entrada directa desde una notificación push de mensaje: /?conversacion=<id>
+  useEffect(() => {
+    if (!token || !conversacionDesdeNotif.current) return;
+    const authToken = localStorage.getItem('token');
+    const id = conversacionDesdeNotif.current;
+    conversacionDesdeNotif.current = null;
+    window.history.replaceState({}, '', window.location.pathname);
+
+    (async () => {
+      try {
+        const res = await fetch(`${API}/conversaciones/${id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+        const data = await res.json();
+        // Si el chat ya no existe o no es tuyo, al menos caés en la bandeja.
+        if (data.success) setConversacionActiva(data.data);
+        else setCurrentView('mensajes');
+      } catch {
+        setCurrentView('mensajes');
+      }
+    })();
   }, [token]);
 
   useEffect(() => {
@@ -365,7 +429,7 @@ function App() {
       <>
         <BannerNavegadorIntegrado />
         <ToastContainer toasts={toasts} />
-        <Chat conversacion={conversacionActiva} user={user} onBack={() => setConversacionActiva(null)} showToast={showToast} />
+        <Chat conversacion={conversacionActiva} user={user} onBack={handleCerrarChat} showToast={showToast} />
       </>
     );
   }
@@ -388,22 +452,34 @@ function App() {
           showToast={showToast}
           abrirSolicitudId={solicitudDesdeNotif}
           onSolicitudAbierta={() => setSolicitudDesdeNotif(null)}
+          mensajesNoLeidos={mensajesNoLeidos}
         />
       )}
       {currentView === 'crear' && (
-        <CrearSolicitud onChangeView={setCurrentView} onCreateSolicitud={handleCreateSolicitud} onLogout={handleLogout} user={user} showToast={showToast} />
+        <CrearSolicitud onChangeView={setCurrentView} onCreateSolicitud={handleCreateSolicitud} onLogout={handleLogout} user={user} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
       )}
       {currentView === 'mis' && (
-        <MisSolicitudes mySolicitudes={mySolicitudes} onChangeView={setCurrentView} onLogout={handleLogout} user={user} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} />
+        <MisSolicitudes mySolicitudes={mySolicitudes} onChangeView={setCurrentView} onLogout={handleLogout} user={user} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
       )}
       {currentView === 'trabajos' && (
-        <MisTrabajos trabajos={trabajos} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} />
+        <MisTrabajos trabajos={trabajos} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
+      )}
+      {currentView === 'mensajes' && (
+        <Mensajes
+          conversaciones={conversaciones}
+          cargando={cargandoConversaciones}
+          user={user}
+          onAbrirConversacion={setConversacionActiva}
+          onChangeView={setCurrentView}
+          onLogout={handleLogout}
+          currentView={currentView}
+        />
       )}
       {currentView === 'perfil' && (
-        <Perfil user={user} onChangeView={setCurrentView} onLogout={handleLogout} onUserUpdate={handleUserUpdate} showToast={showToast} />
+        <Perfil user={user} onChangeView={setCurrentView} onLogout={handleLogout} onUserUpdate={handleUserUpdate} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
       )}
       {currentView === 'comunidad' && (
-        <Comunidad user={user} onChangeView={setCurrentView} onLogout={handleLogout} currentView={currentView} showToast={showToast} />
+        <Comunidad user={user} onChangeView={setCurrentView} onLogout={handleLogout} currentView={currentView} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
       )}
     </>
   );

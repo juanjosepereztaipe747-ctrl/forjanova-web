@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
-function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user }) {
+function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user, mensajesNoLeidos = 0 }) {
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -124,6 +124,9 @@ function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user }) {
       <div style={styles.navbar}>
         <button style={styles.navBtn} onClick={() => onChangeView('home')}>Explorar</button>
         <button style={styles.navBtn} onClick={() => onChangeView('mis')}>Mis solicitudes</button>
+        <button style={styles.navBtn} onClick={() => onChangeView('mensajes')}>
+          💬 Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
+        </button>
         <button style={styles.navBtn} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={{ ...styles.navBtn, ...styles.navBtnActive }} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>

@@ -174,9 +174,10 @@ function Chat({ conversacion, user, onBack, showToast }) {
     return () => clearInterval(timerRef.current);
   }, []);
 
-  const otroUsuario = user?.rol === 'tecnico'
-    ? conversacion.cliente
-    : conversacion.tecnico;
+  // La API ya resuelve quién es "el otro". El fallback mira quién soy yo en la
+  // conversación, no mi rol: con rol 'ambos' el rol solo no alcanza para saberlo.
+  const otroUsuario = conversacion.otro
+    || (conversacion.cliente_id === user?.id ? conversacion.tecnico : conversacion.cliente);
 
   const hayAdjuntoPendiente = fotoFile || audioBlob;
 

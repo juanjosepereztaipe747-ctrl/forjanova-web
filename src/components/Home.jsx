@@ -157,7 +157,7 @@ function ModalTecnico({ tecnico, onClose }) {
   );
 }
 
-function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentView, showToast, abrirSolicitudId, onSolicitudAbierta }) {
+function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentView, showToast, abrirSolicitudId, onSolicitudAbierta, mensajesNoLeidos = 0 }) {
   const [modalSol, setModalSol] = useState(null);
   const [modalTecnico, setModalTecnico] = useState(null);
   const [toast, setToast] = useState('');
@@ -249,6 +249,9 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
         {esTecnico && (
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
+        <button style={{ ...styles.navBtn, ...(currentView === 'mensajes' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mensajes')}>
+          💬 Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
+        </button>
         <button style={{ ...styles.navBtn, ...(currentView === 'comunidad' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>

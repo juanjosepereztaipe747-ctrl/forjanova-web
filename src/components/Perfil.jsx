@@ -6,7 +6,7 @@ const API = `${import.meta.env.VITE_API_URL}/api`;
 const SUPABASE_URL = 'https://alvgcnfkhmvrzehpwyjq.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_0iOSNTdAxM653Cm6Pn4Iyw_GfCdX6cP';
 
-function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
+function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos = 0 }) {
   const [perfil, setPerfil] = useState(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -220,6 +220,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate }) {
           { id: 'home', label: '🏠 Inicio' },
           { id: 'mis', label: '📋 Mis Solicitudes' },
           ...(esTecnico ? [{ id: 'trabajos', label: '🔧 Mis Trabajos' }] : []),
+          { id: 'mensajes', label: `💬 Mensajes${mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}` },
           { id: 'comunidad', label: '🎉 Comunidad' },
           { id: 'perfil', label: '👤 Perfil' },
         ].map(item => (

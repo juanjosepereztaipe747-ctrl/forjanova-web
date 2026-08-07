@@ -27,8 +27,13 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const solicitudId = event.notification.data?.solicitud_id;
-  const targetPath = solicitudId ? `/?solicitud=${solicitudId}` : '/';
+  const datos = event.notification.data || {};
+  // Un aviso de mensaje tiene que caer en el chat, no en la solicitud.
+  const targetPath = datos.conversacion_id
+    ? `/?conversacion=${datos.conversacion_id}`
+    : datos.solicitud_id
+      ? `/?solicitud=${datos.solicitud_id}`
+      : '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsList) => {

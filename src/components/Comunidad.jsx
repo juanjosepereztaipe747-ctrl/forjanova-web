@@ -335,7 +335,7 @@ function DetallePost({ post, user, onClose, onCambiado, showToast }) {
   );
 }
 
-function Comunidad({ user, onChangeView, onLogout, currentView, showToast }) {
+function Comunidad({ user, onChangeView, onLogout, currentView, showToast, mensajesNoLeidos = 0 }) {
   const [publicaciones, setPublicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState(false);
@@ -397,6 +397,9 @@ function Comunidad({ user, onChangeView, onLogout, currentView, showToast }) {
         {(user?.rol === 'tecnico' || user?.rol === 'ambos') && (
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
+        <button style={{ ...styles.navBtn, ...(currentView === 'mensajes' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mensajes')}>
+          💬 Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
+        </button>
         <button style={{ ...styles.navBtn, ...styles.navBtnActive }} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
         <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
       </div>
