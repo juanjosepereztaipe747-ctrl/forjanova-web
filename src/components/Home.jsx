@@ -164,6 +164,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
   const [vistaActiva, setVistaActiva] = useState(esTecnico ? 'solicitudes' : 'tecnicos');
   const [tecnicos, setTecnicos] = useState([]);
+  const [conDistancia, setConDistancia] = useState(false);
   const [busquedaTecnico, setBusquedaTecnico] = useState('');
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('');
@@ -190,12 +191,34 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
     onSolicitudAbierta?.();
   }, [abrirSolicitudId, solicitudes]);
 
+  // La ubicación del cliente se pide al navegador y se usa solo acá, en memoria,
+  // para ordenar la lista. No se guarda en su perfil ni en ninguna tabla: el
+  // cliente declara su domicilio recién al publicar una solicitud.
+  const ubicacionDelNavegador = () =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 8000, maximumAge: 5 * 60 * 1000 },
+      );
+    });
+
   const cargarTecnicos = async () => {
     try {
-      const res = await fetch(`${API}/tecnicos`);
+      const donde = await ubicacionDelNavegador();
+      // Va por POST: en un GET las coordenadas terminarían en la query string y
+      // de ahí a los logs del servidor.
+      const res = await fetch(`${API}/tecnicos/cerca`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(donde || {}),
+      });
       const data = await res.json();
-      if (data.success) setTecnicos(data.data);
-      else showToast?.('No se pudieron cargar los técnicos', 'error');
+      if (data.success) {
+        setTecnicos(data.data);
+        setConDistancia(Boolean(data.con_distancia));
+      } else showToast?.('No se pudieron cargar los técnicos', 'error');
     } catch (err) {
       showToast?.('No se pudieron cargar los técnicos, revisa tu conexión', 'error');
     }
@@ -297,7 +320,12 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                 ))}
               </select>
             </div>
-            <p style={styles.sectionSub}>{tecnicosFiltrados.length} técnico{tecnicosFiltrados.length !== 1 ? 's' : ''} encontrado{tecnicosFiltrados.length !== 1 ? 's' : ''}</p>
+            <p style={styles.sectionSub}>
+              {tecnicosFiltrados.length > 0
+                ? `${tecnicosFiltrados.length} ${tecnicosFiltrados.length === 1 ? 'técnico encontrado' : 'técnicos encontrados'}`
+                : 'Ningún técnico coincide con tu búsqueda'}
+              {conDistancia && tecnicosFiltrados.length > 0 ? ' · ordenados por cercanía' : ''}
+            </p>
             {tecnicosFiltrados.length > 0 ? (
               <div style={styles.tecnicosGrid}>
                 {tecnicosFiltrados.map((tec) => (
@@ -312,14 +340,25 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                       <h4 style={styles.tecnicoNombre}>{tec.nombre}</h4>
                       {tec.especialidad && <p style={styles.tecnicoEsp}>🔧 {tec.especialidad}</p>}
                       {tec.ciudad && <p style={styles.tecnicoCiudad}>📍 {tec.ciudad}</p>}
-                      {tec.rating && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                          <span style={{ color: '#ff6b1a', fontSize: '13px' }}>★ {tec.rating}</span>
-                          {tec.trabajos_completados > 0 && (
-                            <span style={{ color: '#555', fontSize: '12px' }}>· {tec.trabajos_completados} trabajos</span>
-                          )}
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                        {/* `tec.rating &&` pintaba un "0" suelto: con rating 0 el
+                            && devuelve 0 y React lo renderiza. Todo perfil nuevo
+                            nace en 0, así que cada técnico anunciaba que valía
+                            cero. Sin reseñas se muestra "Nuevo". */}
+                        {tec.rating > 0 ? (
+                          <>
+                            <span style={{ color: '#ff6b1a', fontSize: '13px' }}>★ {tec.rating}</span>
+                            {tec.trabajos_completados > 0 && (
+                              <span style={{ color: '#555', fontSize: '12px' }}>· {tec.trabajos_completados} trabajos</span>
+                            )}
+                          </>
+                        ) : (
+                          <span style={styles.badgeNuevo}>Nuevo</span>
+                        )}
+                        {tec.distancia && (
+                          <span style={{ color: '#888', fontSize: '12px' }}>· a {tec.distancia}</span>
+                        )}
+                      </div>
                     </div>
                     <span style={styles.verPerfilBtn}>Ver perfil →</span>
                   </div>
@@ -443,6 +482,7 @@ const styles = {
   emptySub: { fontSize: '14px', color: '#555', margin: '0 0 24px 0' },
   emptyBtn: { background: '#ff6b1a', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px 24px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
   tecnicosGrid: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  badgeNuevo: { background: '#2a231f', color: '#ff6b1a', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 7px', borderRadius: '3px' },
   tecnicoCard: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' },
   tecnicoAvatarSmall: { width: '52px', height: '52px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
   avatarImgSmall: { width: '100%', height: '100%', objectFit: 'cover' },
