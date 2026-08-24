@@ -51,7 +51,7 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
         </div>
         <div style={styles.modalSolicitud}>
           <p style={styles.modalSolicitudTitulo}>{sol.titulo || sol.descripcion?.slice(0, 50)}</p>
-          {sol.zona && <p style={styles.modalSolicitudUbi}>📍 {sol.zona}</p>}
+          {sol.zona && <p style={styles.modalSolicitudUbi}>{sol.zona}</p>}
         </div>
         <div style={styles.modalBody}>
           <div style={styles.field}>
@@ -225,6 +225,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   const [vistaActiva, setVistaActiva] = useState(esTecnico ? 'solicitudes' : 'tecnicos');
   const [tecnicos, setTecnicos] = useState([]);
   const [conDistancia, setConDistancia] = useState(false);
+  const [resumenes, setResumenes] = useState({});
   const [busquedaTecnico, setBusquedaTecnico] = useState('');
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('');
@@ -263,6 +264,34 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
         { timeout: 8000, maximumAge: 5 * 60 * 1000 },
       );
     });
+
+  // Cuántas cotizaciones tiene cada solicitud y entre qué valores. Sin esto el
+  // técnico cotiza a ciegas, pierde varias seguidas y deja de abrir la app.
+  const cargarResumenes = async (lista) => {
+    const token = localStorage.getItem('token');
+    const pares = await Promise.all(
+      lista.map(async (sol) => {
+        try {
+          const res = await fetch(`${API}/solicitudes/${sol.id}/cotizaciones/resumen`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          return data.success ? [sol.id, data.data] : null;
+        } catch { return null; }
+      }),
+    );
+    setResumenes(Object.fromEntries(pares.filter(Boolean)));
+  };
+
+  // `solicitudesAbiertas` es un filter, o sea un array nuevo en cada render: si
+  // fuera la dependencia, el efecto se dispararía siempre y setResumenes lo
+  // volvería a disparar. Se depende de los ids, que sí son estables.
+  const idsAbiertas = solicitudesAbiertas.map((s) => s.id).join(',');
+  useEffect(() => {
+    if (!esTecnico || !idsAbiertas) return;
+    cargarResumenes(solicitudesAbiertas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esTecnico, idsAbiertas]);
 
   const cargarTecnicos = async () => {
     try {
@@ -319,7 +348,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
         <div style={styles.headerRight}>
           {user && (
             <span style={styles.userRol}>
-              {user.rol === 'tecnico' ? '🔧 Técnico' : user.rol === 'ambos' ? '🔧 Técnico' : '👤 Cliente'}
+              {esTecnico ? 'Técnico' : 'Cliente'}
             </span>
           )}
           <button style={styles.logoutBtn} onClick={onLogout}>Salir</button>
@@ -328,26 +357,26 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
 
       <div style={styles.navbar}>
         <button style={{ ...styles.navBtn, ...(currentView === 'home' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('home')}>Explorar</button>
-        <button style={{ ...styles.navBtn, ...(currentView === 'mis' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mis')}>Mis solicitudes</button>
+        <button style={{ ...styles.navBtn, ...(currentView === 'mis' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mis')}>{esTecnico ? 'Mis cotizaciones' : 'Mis solicitudes'}</button>
         {esTecnico && (
           <button style={{ ...styles.navBtn, ...(currentView === 'trabajos' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('trabajos')}>Mis trabajos</button>
         )}
         <button style={{ ...styles.navBtn, ...(currentView === 'mensajes' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('mensajes')}>
-          💬 Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
+          Mensajes{mensajesNoLeidos > 0 ? ` (${mensajesNoLeidos})` : ''}
         </button>
-        <button style={{ ...styles.navBtn, ...(currentView === 'comunidad' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('comunidad')}>🎉 Comunidad</button>
-        <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>👤 Perfil</button>
+        <button style={{ ...styles.navBtn, ...(currentView === 'comunidad' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('comunidad')}>Comunidad</button>
+        <button style={{ ...styles.navBtn, ...(currentView === 'perfil' ? styles.navBtnActive : {}) }} onClick={() => onChangeView('perfil')}>Perfil</button>
         <button style={styles.navBtnCreate} onClick={() => onChangeView('crear')}>+ Crear</button>
       </div>
 
       <div style={styles.tabsWrap}>
         {esTecnico && (
-          <button style={{ ...styles.tabBtn, ...(vistaActiva === 'solicitudes' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('solicitudes')}>📋 Solicitudes</button>
+          <button style={{ ...styles.tabBtn, ...(vistaActiva === 'solicitudes' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('solicitudes')}>Solicitudes</button>
         )}
         {!esTecnico && (
-          <button style={{ ...styles.tabBtn, ...(vistaActiva === 'tecnicos' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('tecnicos')}>👷 Técnicos</button>
+          <button style={{ ...styles.tabBtn, ...(vistaActiva === 'tecnicos' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('tecnicos')}>Técnicos</button>
         )}
-        <button style={{ ...styles.tabBtn, ...(vistaActiva === 'mapa' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('mapa')}>🗺️ Mapa</button>
+        <button style={{ ...styles.tabBtn, ...(vistaActiva === 'mapa' ? styles.tabBtnActive : {}) }} onClick={() => setVistaActiva('mapa')}>Mapa</button>
       </div>
 
       <div style={styles.content}>
@@ -397,26 +426,39 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                       }
                     </div>
                     <div style={styles.tecnicoInfo}>
-                      <h4 style={styles.tecnicoNombre}>{tec.nombre}</h4>
-                      {tec.especialidad && <p style={styles.tecnicoEsp}>🔧 {tec.especialidad}</p>}
-                      {tec.ciudad && <p style={styles.tecnicoCiudad}>📍 {tec.ciudad}</p>}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                      <div style={styles.tecnicoFila1}>
+                        <h4 style={styles.tecnicoNombre}>{tec.nombre}</h4>
                         {/* `tec.rating &&` pintaba un "0" suelto: con rating 0 el
                             && devuelve 0 y React lo renderiza. Todo perfil nuevo
                             nace en 0, así que cada técnico anunciaba que valía
                             cero. Sin reseñas se muestra "Nuevo". */}
-                        {tec.rating > 0 ? (
-                          <>
-                            <span style={{ color: '#ff6b1a', fontSize: '13px' }}>★ {tec.rating}</span>
-                            {tec.trabajos_completados > 0 && (
-                              <span style={{ color: '#555', fontSize: '12px' }}>· {tec.trabajos_completados} trabajos</span>
-                            )}
-                          </>
-                        ) : (
-                          <span style={styles.badgeNuevo}>Nuevo</span>
-                        )}
+                        {tec.rating > 0
+                          ? <span style={styles.tecnicoRating}>★ {tec.rating}</span>
+                          : <span style={styles.badgeNuevo}>Nuevo</span>}
+                      </div>
+                      {tec.especialidad && <p style={styles.tecnicoEsp}>{tec.especialidad}</p>}
+
+                      {/* La distancia va primero, antes que el precio o la
+                          reputación: cuando el horno está frío, quién llega
+                          antes pesa más que quién cobra menos. */}
+                      <div style={styles.tecnicoDatos}>
                         {tec.distancia && (
-                          <span style={{ color: '#888', fontSize: '12px' }}>· a {tec.distancia}</span>
+                          <div style={styles.dato}>
+                            <span style={styles.datoValor}>{tec.distancia}</span>
+                            <span style={styles.datoCampo}>de distancia</span>
+                          </div>
+                        )}
+                        {tec.trabajos_completados > 0 && (
+                          <div style={styles.dato}>
+                            <span style={styles.datoValor}>{tec.trabajos_completados}</span>
+                            <span style={styles.datoCampo}>trabajos hechos</span>
+                          </div>
+                        )}
+                        {tec.ciudad && (
+                          <div style={styles.dato}>
+                            <span style={styles.datoValor}>{tec.ciudad}</span>
+                            <span style={styles.datoCampo}>zona</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -457,16 +499,40 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                     <div style={styles.cardHeader}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <span style={{ ...styles.badge, ...styles.badgeAbierta }}>● Abierta</span>
-                        {sol.urgente && <span style={{ ...styles.badge, ...styles.badgeUrgente }}>🔴 Urgente</span>}
+                        {sol.urgente && <span style={{ ...styles.badge, ...styles.badgeUrgente }}>● Urgente</span>}
                       </div>
                       {sol.presupuesto_max && <span style={styles.presupuesto}>S/. {sol.presupuesto_max}</span>}
                     </div>
                     <h3 style={styles.cardTitle}>{sol.titulo || sol.descripcion?.slice(0, 40)}</h3>
                     <p style={styles.cardDesc}>{sol.descripcion}</p>
                     <div style={styles.cardInfo}>
-                      {sol.servicio && sol.servicio !== 'general' && <span style={styles.infoTag}>🔧 {sol.servicio}</span>}
-                      {sol.zona && <span style={styles.infoTag}>📍 {sol.zona}</span>}
+                      {sol.servicio && sol.servicio !== 'general' && <span style={styles.infoTag}>{sol.servicio}</span>}
+                      {sol.zona && <span style={styles.infoTag}>{sol.zona}</span>}
+                      {sol.distancia && <span style={styles.infoTag}>a {sol.distancia}</span>}
                     </div>
+
+                    {/* Con una sola cotización recibida se muestra el conteo y no
+                        el rango: con n=1 el mínimo y el máximo son el precio
+                        exacto de esa persona. */}
+                    <div style={resumenes[sol.id] ? styles.competencia : undefined}>
+                      {(() => {
+                        const r = resumenes[sol.id];
+                        if (!r) return null;
+                        if (r.count === 0) return <span style={styles.competenciaDestacado}>Nadie cotizó todavía</span>;
+                        return (
+                          <span style={styles.competenciaTexto}>
+                            <b style={styles.competenciaDestacado}>
+                              {r.count} {r.count === 1 ? 'cotización' : 'cotizaciones'}
+                            </b>
+                            {r.min != null && r.max != null && (
+                              <> · rango S/ {Number(r.min).toLocaleString('es-PE')} – {Number(r.max).toLocaleString('es-PE')}</>
+                            )}
+                            {r.a_todo_costo > 0 && <> · {r.a_todo_costo} a todo costo</>}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
                     <button style={styles.cotizarBtn} onClick={() => setModalSol(sol)}>Enviar cotización</button>
                   </div>
                 ))}
@@ -533,6 +599,9 @@ const styles = {
   cardTitle: { fontSize: '16px', fontWeight: '600', color: '#fff', margin: '0 0 6px 0' },
   cardDesc: { fontSize: '14px', color: '#888', margin: '0 0 12px 0', lineHeight: '1.5' },
   cardInfo: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' },
+  competencia: { borderTop: '1px solid #2a2a2a', marginTop: '10px', paddingTop: '10px', marginBottom: '10px' },
+  competenciaTexto: { color: '#8a837b', fontSize: '12px' },
+  competenciaDestacado: { color: '#f2ede6', fontWeight: 700 },
   infoTag: { fontSize: '12px', color: '#666', background: '#111', padding: '4px 10px', borderRadius: '20px', border: '1px solid #2a2a2a' },
   cotizarBtn: { width: '100%', background: 'transparent', border: '1px solid #ff6b1a', color: '#ff6b1a', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
   clienteNote: { width: '100%', textAlign: 'center', padding: '10px', fontSize: '13px', color: '#444', border: '1px solid #222', borderRadius: '8px' },
@@ -541,7 +610,15 @@ const styles = {
   emptyText: { fontSize: '18px', fontWeight: '600', color: '#fff', margin: '0 0 6px 0' },
   emptySub: { fontSize: '14px', color: '#555', margin: '0 0 24px 0' },
   emptyBtn: { background: '#ff6b1a', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px 24px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
-  tecnicosGrid: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  tecnicosGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '12px' },
+  tecnicoFila1: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' },
+  tecnicoRating: { color: '#ff6b1a', fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap' },
+  // Tres datos con la misma forma: el número grande arriba, qué es abajo. Se lee
+  // de un vistazo y no hace falta un icono para saber qué es cada cosa.
+  tecnicoDatos: { display: 'flex', flexWrap: 'wrap', gap: '10px 18px', borderTop: '1px solid #2a2a2a', marginTop: '10px', paddingTop: '10px' },
+  dato: { display: 'flex', flexDirection: 'column', gap: '1px' },
+  datoValor: { color: '#f2ede6', fontSize: '15px', fontWeight: 700, lineHeight: 1.1 },
+  datoCampo: { color: '#6e665e', fontSize: '11px' },
   opcionMat: { display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', textAlign: 'left', background: '#131011', border: '1px solid #2a2a2a', borderRadius: '7px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' },
   opcionMatActiva: { borderColor: '#ff6b1a', background: '#2a231f' },
   opcionMatTitulo: { color: '#f2ede6', fontSize: '14px', fontWeight: 600 },
