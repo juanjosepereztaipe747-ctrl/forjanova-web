@@ -11,6 +11,7 @@ import Admin from './components/Admin';
 import Perfil from './components/Perfil';
 import Comunidad from './components/Comunidad';
 import { registrarPushSilencioso } from './push';
+import { guardarSesion, limpiarSesion, onSesionExpirada, asegurarSesionValida, getToken, getRefreshToken } from './api/client';
 import './App.css';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
@@ -171,8 +172,7 @@ function App() {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        guardarSesion(data);
         setToken(data.token);
         setUser(data.user);
       } else {
@@ -290,7 +290,9 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  // Limpia solo el estado de React. Se usa tal cual cuando la sesión se cae
+  // sola: ahí el refresh token ya no sirve y no hay nada que revocar.
+  const limpiarEstadoSesion = useCallback(() => {
     setToken(null);
     setUser(null);
     setSolicitudes([]);
@@ -301,19 +303,80 @@ function App() {
     setNotificaciones([]);
     clearInterval(notifInterval.current);
     clearInterval(chatsInterval.current);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    limpiarSesion();
     setCurrentView('home');
     setMostrarLanding(true);
-  };
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+
+    // Se limpia primero para que el botón responda al instante; la revocación
+    // va después y si falla la red igual quedaste afuera de este dispositivo.
+    limpiarEstadoSesion();
+
+    if (refreshToken) {
+      try {
+        await fetch(`${API}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch {
+        // Sin conexión el token queda vivo del lado del server hasta que expire.
+      }
+    }
+  }, [limpiarEstadoSesion]);
+
+  // Cuando el interceptor se queda sin forma de renovar, esto vacía la app.
+  useEffect(() => {
+    onSesionExpirada(() => {
+      limpiarEstadoSesion();
+      showToast('Tu sesión expiró, iniciá sesión de nuevo', 'warning');
+    });
+  }, [limpiarEstadoSesion, showToast]);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    if (savedToken && savedUser) {
+    let cancelado = false;
+
+    (async () => {
+      // Renueva antes de restaurar: si el token murió mientras la app estaba
+      // cerrada, la sesión arranca sana en vez de con la pantalla llena de errores.
+      await asegurarSesionValida();
+      if (cancelado) return;
+
+      const savedToken = getToken();
+      const savedUser = localStorage.getItem('user');
+      if (!savedToken || !savedUser) return;
+
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
-    }
+
+      // El user de localStorage es una foto vieja del login: si el perfil se
+      // editó (o se guardó incompleto) queda desactualizado para siempre.
+      try {
+        const res = await fetch(`${API}/perfil/me`, { headers: { Authorization: `Bearer ${savedToken}` } });
+        const data = await res.json();
+        if (!cancelado && data.success) {
+          setUser(data.data);
+          localStorage.setItem('user', JSON.stringify(data.data));
+        }
+      } catch {
+        // Se sigue con la copia local: sin red igual se puede navegar.
+      }
+    })();
+
+    return () => { cancelado = true; };
+  }, []);
+
+  // Volver a la pestaña después de un rato es justo cuando el token suele estar
+  // vencido; renovarlo acá evita que la primera acción falle.
+  useEffect(() => {
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') asegurarSesionValida();
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
   }, []);
 
   useEffect(() => {

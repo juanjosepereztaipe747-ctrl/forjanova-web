@@ -50,24 +50,30 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
       setMensaje('Las contraseñas no coinciden'); 
       return; 
     }
-    if (formData.rol === 'tecnico' && !formData.especialidad) { 
-      setMensaje('La especialidad es obligatoria para técnicos'); 
-      return; 
+    // 'ambos' también ejerce de técnico: antes se colaba sin especialidad y sin
+    // ubicación, y después no aparecía en el mapa.
+    const ejerceDeTecnico = formData.rol === 'tecnico' || formData.rol === 'ambos';
+
+    if (ejerceDeTecnico && !formData.especialidad) {
+      setMensaje('La especialidad es obligatoria para técnicos');
+      return;
     }
-    
+
     setLoadingReg(true);
     try {
+      // La ciudad la carga cualquiera en el formulario, pero solo se mandaba
+      // para técnicos: al cliente se le perdía y el perfil salía vacío.
       const body = {
         nombre: formData.nombre,
         email: formData.email,
         password: formData.password,
         rol: formData.rol,
         telefono: formData.telefono,
+        ciudad: formData.ciudad,
       };
-      
-      if (formData.rol === 'tecnico') {
+
+      if (ejerceDeTecnico) {
         body.especialidad = formData.especialidad;
-        body.ciudad = formData.ciudad;
         const { lat, lng } = await obtenerUbicacion();
         if (lat && lng) { setUbicacionTecnico({ lat, lng }); }
       }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { estadoPush, activarPush, desactivarPush } from '../push';
+import { getToken } from '../api/client';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const SUPABASE_URL = 'https://alvgcnfkhmvrzehpwyjq.supabase.co';
@@ -28,8 +29,10 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   const fotoPerfilInputRef = useRef(null);
   const fotoEstadoInputRef = useRef(null);
 
-  const token = localStorage.getItem('token');
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  // Se leen en cada llamada, no una vez al montar: el token se renueva solo y
+  // la copia vieja seguía mandándose hasta recargar la página.
+  const token = () => getToken();
+  const headers = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` });
   const esTecnico = user?.rol === 'tecnico' || user?.rol === 'ambos';
 
   useEffect(() => { cargarPerfil(); cargarEstados(); estadoPush().then(setPushEstado); }, []);
@@ -38,11 +41,11 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
     setPushCargando(true); setPushMsg('');
     try {
       if (pushEstado === 'activo') {
-        const r = await desactivarPush(token);
+        const r = await desactivarPush(token());
         if (r.success) { setPushEstado('inactivo'); setPushMsg('🔕 Notificaciones desactivadas'); }
         else setPushMsg('Error: ' + r.error);
       } else {
-        const r = await activarPush(token);
+        const r = await activarPush(token());
         if (r.success) { setPushEstado('activo'); setPushMsg('✅ Notificaciones activadas'); }
         else setPushMsg('Error: ' + r.error);
       }
@@ -56,11 +59,18 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   const cargarPerfil = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/perfil/me`, { headers });
+      const res = await fetch(`${API}/perfil/me`, { headers: headers() });
       const data = await res.json();
       if (data.success) {
         setPerfil(data.data);
         setForm({ nombre: data.data.nombre || '', ciudad: data.data.ciudad || '', especialidad: data.data.especialidad || '', telefono: data.data.telefono || '', bio: data.data.bio || '' });
+        // El perfil recién traído es la versión buena: se propaga para que el
+        // resto de la app no siga con la copia vieja del login.
+        onUserUpdate?.(data.data);
+      } else {
+        // Antes este caso no existía: si fallaba, el perfil quedaba en blanco
+        // sin ningún mensaje y parecía que los datos no se habían guardado.
+        setMsg('Error: ' + (data.error || 'No se pudo cargar tu perfil'));
       }
     } catch (err) { setMsg('Error cargando perfil'); }
     setLoading(false);
@@ -113,7 +123,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   const guardarPerfil = async () => {
     setGuardando(true); setMsg('');
     try {
-      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify(form) });
+      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers: headers(), body: JSON.stringify(form) });
       const data = await res.json();
       if (data.success) {
         setPerfil(prev => ({ ...prev, ...data.data }));
@@ -129,7 +139,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   const toggleDisponibilidad = async () => {
     const nuevo = !perfil.disponible;
     try {
-      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify({ disponible: nuevo }) });
+      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers: headers(), body: JSON.stringify({ disponible: nuevo }) });
       const data = await res.json();
       if (data.success) {
         setPerfil(prev => ({ ...prev, disponible: nuevo }));
@@ -146,7 +156,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         try {
-          const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify({ lat, lng }) });
+          const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers: headers(), body: JSON.stringify({ lat, lng }) });
           const data = await res.json();
           if (data.success) {
             setPerfil(prev => ({ ...prev, lat, lng }));
@@ -176,7 +186,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
       });
       if (!uploadRes.ok) throw new Error('Error subiendo imagen');
       const foto_perfil = `${SUPABASE_URL}/storage/v1/object/public/perfiles/${filename}`;
-      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers, body: JSON.stringify({ foto_perfil }) });
+      const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers: headers(), body: JSON.stringify({ foto_perfil }) });
       const data = await res.json();
       if (data.success) {
         setPerfil(prev => ({ ...prev, foto_perfil }));
