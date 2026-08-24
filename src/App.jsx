@@ -207,13 +207,16 @@ function App() {
     }
   };
 
-  const handleCotizar = async (solicitudId, { precio, mensaje, tiempo_estimado_dias }) => {
+  // Se reenvía el formulario entero: el desglose (mano de obra, materiales y a
+  // cargo de quién) viaja tal cual y el total lo calcula la API, para que nadie
+  // pueda mandar un total que no cierre con su propio desglose.
+  const handleCotizar = async (solicitudId, cotizacion) => {
     const authToken = localStorage.getItem('token');
     try {
       const res = await fetch(`${API}/cotizaciones`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ solicitud_id: solicitudId, precio, mensaje, tiempo_estimado_dias }),
+        body: JSON.stringify({ solicitud_id: solicitudId, ...cotizacion }),
       });
       const data = await res.json();
       return data.success ? { success: true } : { success: false, error: data.error };

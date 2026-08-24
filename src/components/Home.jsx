@@ -4,17 +4,39 @@ import { supabase } from '../supabaseClient';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
+// Quién pone los materiales. El orden importa: la primera opción es la que le
+// da más certeza al cliente, y conviene que sea la que se lee primero.
+const MODALIDADES = [
+  { valor: 'tecnico',   titulo: 'Los pongo yo',        detalle: 'Precio a todo costo. Si el material sale más caro, lo absorbés vos.' },
+  { valor: 'cliente',   titulo: 'Los pone el cliente', detalle: 'Cotizás tu mano de obra. El material lo compra y lo paga el cliente.' },
+  { valor: 'no_aplica', titulo: 'No lleva materiales', detalle: 'Solo mano de obra: revisión, diagnóstico, reparación sin repuestos.' },
+];
+
 function ModalCotizar({ sol, onClose, onSubmit }) {
-  const [precio, setPrecio] = useState('');
+  const [manoObra, setManoObra] = useState('');
+  const [materiales, setMateriales] = useState('');
+  const [aCargo, setACargo] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [dias, setDias] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const llevaMateriales = aCargo === 'tecnico' || aCargo === 'cliente';
+  // El mismo número que va a ver el cliente. Sin esto el técnico pone "2000"
+  // creyendo que cotizó 2000 cuando en realidad el trabajo sale 5000.
+  const total = (parseFloat(manoObra) || 0) + (llevaMateriales ? (parseFloat(materiales) || 0) : 0);
+
   const handleSubmit = async () => {
-    if (!precio || !mensaje) { setError('Precio y mensaje son obligatorios.'); return; }
+    if (!aCargo) { setError('Indicá quién pone los materiales.'); return; }
+    if (!manoObra || !mensaje) { setError('La mano de obra y el mensaje son obligatorios.'); return; }
     setLoading(true); setError('');
-    const result = await onSubmit(sol.id, { precio: parseFloat(precio), mensaje, tiempo_estimado_dias: dias.trim() || undefined });
+    const result = await onSubmit(sol.id, {
+      precio_mano_obra: parseFloat(manoObra),
+      precio_materiales: llevaMateriales && materiales ? parseFloat(materiales) : undefined,
+      materiales_a_cargo: aCargo,
+      mensaje,
+      tiempo_estimado_dias: dias.trim() || undefined,
+    });
     setLoading(false);
     if (result.success) onClose();
     else setError(result.error || 'Error al enviar cotización.');
@@ -33,16 +55,54 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
         </div>
         <div style={styles.modalBody}>
           <div style={styles.field}>
-            <label style={styles.label}>Precio (S/.)*</label>
-            <input style={styles.input} type="number" placeholder="Ej: 250" value={precio} onChange={(e) => setPrecio(e.target.value)} />
+            <label style={styles.label}>Los materiales…*</label>
+            {MODALIDADES.map((m) => (
+              <button
+                key={m.valor}
+                type="button"
+                style={{ ...styles.opcionMat, ...(aCargo === m.valor ? styles.opcionMatActiva : {}) }}
+                onClick={() => setACargo(m.valor)}
+              >
+                <span style={styles.opcionMatTitulo}>{m.titulo}</span>
+                <span style={styles.opcionMatDetalle}>{m.detalle}</span>
+              </button>
+            ))}
           </div>
+
+          <div style={styles.field}>
+            <label style={styles.label}>Mano de obra (S/.)*</label>
+            <input style={styles.input} type="number" placeholder="Ej: 2000" value={manoObra} onChange={(e) => setManoObra(e.target.value)} />
+          </div>
+
+          {llevaMateriales && (
+            <div style={styles.field}>
+              <label style={styles.label}>
+                Materiales (S/.){aCargo === 'cliente' ? ' — estimado' : ''}
+              </label>
+              <input style={styles.input} type="number" placeholder="Ej: 3000" value={materiales} onChange={(e) => setMateriales(e.target.value)} />
+              <p style={styles.ayuda}>
+                {aCargo === 'cliente'
+                  ? 'El cliente los compra. Si salen más caros, los paga él — se lo vamos a decir así de claro.'
+                  : 'Van incluidos en tu precio. Si salen más caros, la diferencia la ponés vos.'}
+              </p>
+            </div>
+          )}
+
+          {total > 0 && (
+            <div style={styles.totalCaja}>
+              <span style={styles.totalLabel}>
+                {aCargo === 'cliente' ? 'Total estimado' : 'Total'}
+              </span>
+              <span style={styles.totalMonto}>S/ {total.toLocaleString('es-PE')}</span>
+            </div>
+          )}
           <div style={styles.field}>
             <label style={styles.label}>Tiempo estimado (días)</label>
             <input style={styles.input} type="text" placeholder="Ej: 3 días, esta semana, urgente" value={dias} onChange={(e) => setDias(e.target.value)} />
           </div>
           <div style={styles.field}>
             <label style={styles.label}>Mensaje al cliente*</label>
-            <textarea style={styles.textarea} placeholder="Describe tu propuesta, experiencia, materiales incluidos..." value={mensaje} onChange={(e) => setMensaje(e.target.value)} rows={4} />
+            <textarea style={styles.textarea} placeholder="Contá cómo lo vas a hacer y por qué conviene elegirte. Los precios ya están arriba." value={mensaje} onChange={(e) => setMensaje(e.target.value)} rows={4} />
           </div>
           {error && <p style={styles.errorText}>{error}</p>}
         </div>
@@ -482,6 +542,14 @@ const styles = {
   emptySub: { fontSize: '14px', color: '#555', margin: '0 0 24px 0' },
   emptyBtn: { background: '#ff6b1a', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px 24px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
   tecnicosGrid: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  opcionMat: { display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', textAlign: 'left', background: '#131011', border: '1px solid #2a2a2a', borderRadius: '7px', padding: '10px 12px', marginBottom: '6px', cursor: 'pointer' },
+  opcionMatActiva: { borderColor: '#ff6b1a', background: '#2a231f' },
+  opcionMatTitulo: { color: '#f2ede6', fontSize: '14px', fontWeight: 600 },
+  opcionMatDetalle: { color: '#8a837b', fontSize: '12px', lineHeight: 1.35 },
+  ayuda: { color: '#8a837b', fontSize: '12px', margin: '6px 0 0', lineHeight: 1.35 },
+  totalCaja: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid #2a2a2a', paddingTop: '12px', marginBottom: '4px' },
+  totalLabel: { color: '#8a837b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 },
+  totalMonto: { color: '#ff6b1a', fontSize: '22px', fontWeight: 700 },
   badgeNuevo: { background: '#2a231f', color: '#ff6b1a', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 7px', borderRadius: '3px' },
   tecnicoCard: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' },
   tecnicoAvatarSmall: { width: '52px', height: '52px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },

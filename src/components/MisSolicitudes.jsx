@@ -248,6 +248,37 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                       </span>
                       <span style={styles.cotPrecio}>S/. {cot.precio}</span>
                     </div>
+                    {/* El desglose es lo que hace comparables dos cotizaciones.
+                        "S/ 5.000 todo incluido" y "S/ 2.000 + 3.000 de material"
+                        suman igual pero no son el mismo trato: cambia quién paga
+                        si el material sale más caro. Esa es la línea que decide. */}
+                    <div style={styles.desglose}>
+                      <div style={styles.desgloseFila}>
+                        <span style={styles.desgloseCampo}>Mano de obra</span>
+                        <span style={styles.desgloseValor}>S/ {Number(cot.precio_mano_obra ?? cot.precio).toLocaleString('es-PE')}</span>
+                      </div>
+                      <div style={styles.desgloseFila}>
+                        <span style={styles.desgloseCampo}>Materiales</span>
+                        <span style={styles.desgloseValor}>
+                          {cot.materiales_a_cargo === 'no_aplica' && 'no lleva'}
+                          {cot.materiales_a_cargo === 'no_especificado' && 'sin desglose'}
+                          {(cot.materiales_a_cargo === 'tecnico' || cot.materiales_a_cargo === 'cliente') &&
+                            (cot.precio_materiales != null
+                              ? `S/ ${Number(cot.precio_materiales).toLocaleString('es-PE')}${cot.materiales_a_cargo === 'cliente' ? ' (estimado)' : ''}`
+                              : 'incluidos')}
+                        </span>
+                      </div>
+                      {cot.materiales_a_cargo && cot.materiales_a_cargo !== 'no_aplica' && (
+                        <div style={styles.desgloseFila}>
+                          <span style={styles.desgloseCampo}>Si el material sale más caro</span>
+                          <span style={cot.materiales_a_cargo === 'tecnico' ? styles.riesgoTecnico : styles.riesgoCliente}>
+                            {cot.materiales_a_cargo === 'tecnico' && 'lo paga el técnico'}
+                            {cot.materiales_a_cargo === 'cliente' && 'lo pagás vos'}
+                            {cot.materiales_a_cargo === 'no_especificado' && 'no lo aclaró'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     {cot.usuarios?.ciudad && <p style={styles.cotTiempo}>📍 {cot.usuarios.ciudad}</p>}
                     {cot.tiempo_estimado_dias && (
                       <p style={styles.cotTiempo}>
@@ -360,6 +391,12 @@ const styles = {
   cotNombre: { fontSize: '14px', fontWeight: '600', color: '#fff' },
   cotEsp: { fontSize: '12px', color: '#666', fontWeight: '400' },
   cotPrecio: { fontSize: '18px', fontWeight: '700', color: '#ff6b1a' },
+  desglose: { borderTop: '1px solid #2a2a2a', borderBottom: '1px solid #2a2a2a', padding: '8px 0', margin: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px' },
+  desgloseFila: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' },
+  desgloseCampo: { color: '#8a837b', fontSize: '12px' },
+  desgloseValor: { color: '#f2ede6', fontSize: '13px', fontWeight: 600 },
+  riesgoTecnico: { color: '#4caf50', fontSize: '12px', fontWeight: 700 },
+  riesgoCliente: { color: '#ffa726', fontSize: '12px', fontWeight: 700 },
   cotTiempo: { fontSize: '12px', color: '#666', margin: '0 0 8px 0' },
   cotMensaje: { fontSize: '14px', color: '#888', margin: '0 0 12px 0', lineHeight: '1.5' },
   aceptarBtn: { width: '100%', background: '#ff6b1a', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
