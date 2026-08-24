@@ -180,7 +180,7 @@ function Landing({ onEntrar }) {
                 {esNuevo(sol.created_at) && <span style={s.recienteBadge}>NUEVO</span>}
                 <span style={s.recienteIcon}>{iconoServicio(sol.servicio)}</span>
                 <p style={s.recienteTitulo}>{sol.titulo}</p>
-                <p style={s.recienteMeta}>📍 {sol.ubicacion}</p>
+                <p style={s.recienteMeta}>📍 {sol.zona || 'Zona reservada'}</p>
                 <p style={s.recienteMeta}>
                   {tiempoRelativo(sol.created_at)} · {sol.cotizaciones_count} cotizaci{sol.cotizaciones_count === 1 ? 'ón' : 'ones'}
                 </p>

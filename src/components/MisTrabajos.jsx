@@ -338,7 +338,9 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
                   <h3 style={styles.cardTitle}>{trabajo.solicitudes?.titulo || trabajo.solicitudes?.descripcion?.slice(0, 40)}</h3>
                   <p style={styles.cardDesc}>{trabajo.solicitudes?.descripcion}</p>
                   <div style={styles.cardInfo}>
-                    {trabajo.solicitudes?.ubicacion && <span style={styles.infoTag}>📍 {trabajo.solicitudes.ubicacion}</span>}
+                    {(trabajo.solicitudes?.ubicacion || trabajo.solicitudes?.zona) && (
+                      <span style={styles.infoTag}>📍 {trabajo.solicitudes.ubicacion || trabajo.solicitudes.zona}</span>
+                    )}
                     {trabajo.tiempo_estimado_dias && (
                       <span style={styles.infoTag}>
                         ⏱ {/^\d+$/.test(String(trabajo.tiempo_estimado_dias)) ? `${trabajo.tiempo_estimado_dias} días` : trabajo.tiempo_estimado_dias}

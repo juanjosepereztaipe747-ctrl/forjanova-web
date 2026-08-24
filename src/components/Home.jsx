@@ -29,7 +29,7 @@ function ModalCotizar({ sol, onClose, onSubmit }) {
         </div>
         <div style={styles.modalSolicitud}>
           <p style={styles.modalSolicitudTitulo}>{sol.titulo || sol.descripcion?.slice(0, 50)}</p>
-          {sol.ubicacion && <p style={styles.modalSolicitudUbi}>📍 {sol.ubicacion}</p>}
+          {sol.zona && <p style={styles.modalSolicitudUbi}>📍 {sol.zona}</p>}
         </div>
         <div style={styles.modalBody}>
           <div style={styles.field}>
@@ -366,7 +366,7 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                     <p style={styles.cardDesc}>{sol.descripcion}</p>
                     <div style={styles.cardInfo}>
                       {sol.servicio && sol.servicio !== 'general' && <span style={styles.infoTag}>🔧 {sol.servicio}</span>}
-                      {sol.ubicacion && <span style={styles.infoTag}>📍 {sol.ubicacion}</span>}
+                      {sol.zona && <span style={styles.infoTag}>📍 {sol.zona}</span>}
                     </div>
                     <button style={styles.cotizarBtn} onClick={() => setModalSol(sol)}>Enviar cotización</button>
                   </div>

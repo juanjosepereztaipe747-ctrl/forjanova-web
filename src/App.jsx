@@ -256,8 +256,13 @@ function App() {
   };
 
   const fetchSolicitudes = async () => {
+    const authToken = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API}/solicitudes`);
+      // La bolsa de solicitudes dejó de ser pública. El interceptor no sirve
+      // acá: solo renueva ante TOKEN_EXPIRED, y esto devolvería NO_TOKEN.
+      const res = await fetch(`${API}/solicitudes`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
       const data = await res.json();
       if (data.success) setSolicitudes(data.data);
       else showToast('No se pudieron cargar las solicitudes: ' + data.error, 'error');
