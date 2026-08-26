@@ -108,7 +108,18 @@ function MapaTecnicos({ onCotizar, esTecnico, showToast }) {
     });
   }, [tecnicosConDistancia]);
 
-  const cantidadDestacados = tecnicosConDistancia.filter((t) => t.destacado).length;
+  // La lista muestra solo a los que estan dentro del radio, para que el
+  // encabezado y lo que se ve debajo digan lo mismo. Antes el titulo contaba los
+  // cercanos y la lista los mostraba a todos, asi que decia "0 tecnicos cerca de
+  // ti" arriba de seis tecnicos a 400 km.
+  //
+  // `cerca` es true cuando la distancia es null, o sea cuando el navegador no dio
+  // permiso de ubicacion. Sin saber donde esta el cliente no hay nada que
+  // filtrar: en ese caso salen todos, como antes.
+  const tecnicosCerca = useMemo(
+    () => tecnicosOrdenados.filter((t) => t.cerca),
+    [tecnicosOrdenados],
+  );
 
   if (!isLoaded) return <div style={{ color: '#888', textAlign: 'center', padding: '40px' }}>Cargando mapa...</div>;
 
@@ -215,20 +226,30 @@ function MapaTecnicos({ onCotizar, esTecnico, showToast }) {
         </p>
       )}
 
+      {tecnicosOrdenados.length > 0 && tecnicosCerca.length === 0 && (
+        <p style={{ textAlign: 'center', color: '#555', fontSize: '13px', marginTop: '12px' }}>
+          Ningún técnico a menos de {RADIO_KM} km de tu ubicación
+        </p>
+      )}
+
       <div style={{ display: 'flex', gap: '12px', margin: '12px 0', fontSize: '12px', color: '#666' }}>
         <span>🔵 Tu ubicación</span>
         <span>🟠 Coinciden y están cerca</span>
         <span>⚪ Otros técnicos cerca</span>
       </div>
 
-      {tecnicosOrdenados.length > 0 && (
+      {tecnicosCerca.length > 0 && (
         <div style={styles.lista}>
+          {/* El numero cuenta exactamente lo que se lista debajo. La palabra va
+              generica a proposito: la lista filtra por distancia, no por
+              especialidad, asi que decir "3 electricistas" mientras se muestran
+              gasfiteros seria mentir. El chip sigue resaltando con el badge
+              "Coincide" y ordenando primero. */}
           <p style={styles.listaHead}>
-            <b style={{ color: '#ff6b1a' }}>{cantidadDestacados}</b>{' '}
-            {especialidadActiva ? especialidadActiva.toLowerCase() : 'técnico'}
-            {cantidadDestacados !== 1 ? 's' : ''} cerca de ti
+            <b style={{ color: '#ff6b1a' }}>{tecnicosCerca.length}</b>{' '}
+            técnico{tecnicosCerca.length !== 1 ? 's' : ''} cerca de ti
           </p>
-          {tecnicosOrdenados.map((tec) => (
+          {tecnicosCerca.map((tec) => (
             <div
               key={tec.id}
               style={{
