@@ -298,7 +298,11 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
         {esTecnico && (
           <div style={s.statsRow}>
             <div style={s.statCard}><p style={s.statNum}>{perfil?.rating || '—'}</p><p style={s.statLabel}>⭐ Rating</p></div>
+            {/* Trabajos y reseñas son dos números distintos: la mayoría de los
+                clientes no califica, así que el técnico ve cuánto trabajó por un
+                lado y sobre cuánto se calculó su rating por el otro. */}
             <div style={s.statCard}><p style={s.statNum}>{perfil?.trabajos_completados || 0}</p><p style={s.statLabel}>✅ Trabajos</p></div>
+            <div style={s.statCard}><p style={s.statNum}>{perfil?.total_calificaciones || 0}</p><p style={s.statLabel}>💬 Reseñas</p></div>
             <div style={s.statCard}><p style={s.statNum}>{perfil?.especialidad || '—'}</p><p style={s.statLabel}>🔧 Especialidad</p></div>
           </div>
         )}
@@ -412,7 +416,7 @@ const s = {
   nombreTitle: { fontSize: '20px', fontWeight: '700', color: '#fff', margin: '0 0 2px 0' },
   rolBadge: { fontSize: '11px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', display: 'inline-block' },
   toggleBtn: { border: '1px solid', borderRadius: '20px', padding: '6px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
-  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' },
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginBottom: '20px' },
   statCard: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', textAlign: 'center' },
   statNum: { fontSize: '22px', fontWeight: '700', color: '#ff6b1a', margin: '0 0 4px 0' },
   statLabel: { fontSize: '11px', color: '#555', margin: 0 },
