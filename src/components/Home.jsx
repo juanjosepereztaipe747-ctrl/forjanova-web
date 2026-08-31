@@ -432,8 +432,18 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                             && devuelve 0 y React lo renderiza. Todo perfil nuevo
                             nace en 0, así que cada técnico anunciaba que valía
                             cero. Sin reseñas se muestra "Nuevo". */}
+                        {/* El rating solo no dice nada: un 5.0 de una reseña
+                            parece mejor que un 4.8 de cuarenta, y es al revés.
+                            La cantidad va pegada al número, no escondida. */}
                         {tec.rating > 0
-                          ? <span style={styles.tecnicoRating}>★ {tec.rating}</span>
+                          ? (
+                            <span style={styles.tecnicoRating}>
+                              ★ {tec.rating}
+                              {tec.total_calificaciones > 0 && (
+                                <span style={styles.tecnicoResenas}> ({tec.total_calificaciones})</span>
+                              )}
+                            </span>
+                          )
                           : <span style={styles.badgeNuevo}>Nuevo</span>}
                       </div>
                       {tec.especialidad && <p style={styles.tecnicoEsp}>{tec.especialidad}</p>}
@@ -627,6 +637,7 @@ const styles = {
   totalCaja: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid #2a2a2a', paddingTop: '12px', marginBottom: '4px' },
   totalLabel: { color: '#8a837b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 },
   totalMonto: { color: '#ff6b1a', fontSize: '22px', fontWeight: 700 },
+  tecnicoResenas: { fontWeight: '400', opacity: 0.75, fontSize: '12px' },
   badgeNuevo: { background: '#2a231f', color: '#ff6b1a', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 7px', borderRadius: '3px' },
   tecnicoCard: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' },
   tecnicoAvatarSmall: { width: '52px', height: '52px', borderRadius: '50%', background: '#2a2a2a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
