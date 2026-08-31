@@ -249,6 +249,9 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('');
 
+  const vacio = (texto) => !texto || !String(texto).trim();
+  const perfilIncompleto = esTecnico && (vacio(user?.bio) || vacio(user?.servicios) || vacio(user?.descripcion_perfil));
+
   const solicitudesAbiertas = solicitudes.filter((s) => s.estado === 'abierta');
   const solicitudesFiltradas = filtroCategoria
     ? solicitudesAbiertas.filter((s) => s.servicio === filtroCategoria)
@@ -399,6 +402,22 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
       </div>
 
       <div style={styles.content}>
+        {/* 12 de 15 técnicos tenían el perfil vacío. No es que no quieran
+            llenarlo: nadie se los pidió nunca ni les dijo qué se pierden. El
+            aviso queda hasta que escriban algo, porque hoy compiten contra
+            otros técnicos y ni saben que están compitiendo desarmados. */}
+        {perfilIncompleto && (
+          <div style={styles.avisoPerfil}>
+            <div>
+              <p style={styles.avisoPerfilTitulo}>Tu perfil está incompleto</p>
+              <p style={styles.avisoPerfilTexto}>
+                Los clientes ven tu nombre y nada más. Contales quién sos y qué hacés: es lo único que tenés para que te elijan mientras no tengas reseñas.
+              </p>
+            </div>
+            <button style={styles.avisoPerfilBtn} onClick={() => onChangeView('perfil')}>Completar perfil</button>
+          </div>
+        )}
+
         {vistaActiva === 'mapa' && (
           <div>
             <h2 style={styles.sectionTitle}>Técnicos cerca de ti</h2>
@@ -466,6 +485,10 @@ function Home({ solicitudes, user, onChangeView, onLogout, onCotizar, currentVie
                           : <span style={styles.badgeNuevo}>Nuevo</span>}
                       </div>
                       {tec.especialidad && <p style={styles.tecnicoEsp}>{tec.especialidad}</p>}
+                      {/* La etiqueta del campo prometía "aparece en tu tarjeta"
+                          y no aparecía en ninguna. Un técnico que escribe algo y
+                          no lo ve salir, no escribe el resto. */}
+                      {tec.descripcion_perfil && <p style={styles.tecnicoDescCard}>{tec.descripcion_perfil}</p>}
 
                       {/* La distancia va primero, antes que el precio o la
                           reputación: cuando el horno está frío, quién llega
@@ -656,6 +679,11 @@ const styles = {
   totalCaja: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid #2a2a2a', paddingTop: '12px', marginBottom: '4px' },
   totalLabel: { color: '#8a837b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 700 },
   totalMonto: { color: '#ff6b1a', fontSize: '22px', fontWeight: 700 },
+  avisoPerfil: { display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', background: '#2a1a0a', border: '1px solid #ff6b1a', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px' },
+  avisoPerfilTitulo: { fontSize: '14px', fontWeight: '700', color: '#ff6b1a', margin: '0 0 4px 0' },
+  avisoPerfilTexto: { fontSize: '13px', color: '#c9a68a', margin: 0, lineHeight: '1.5', maxWidth: '520px' },
+  avisoPerfilBtn: { background: '#ff6b1a', border: 'none', color: '#fff', borderRadius: '8px', padding: '10px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' },
+  tecnicoDescCard: { fontSize: '12px', color: '#7a736c', margin: '2px 0 0 0', lineHeight: '1.4' },
   tecnicoResenas: { fontWeight: '400', opacity: 0.75, fontSize: '12px' },
   badgeNuevo: { background: '#2a231f', color: '#ff6b1a', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', padding: '2px 7px', borderRadius: '3px' },
   tecnicoCard: { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' },
