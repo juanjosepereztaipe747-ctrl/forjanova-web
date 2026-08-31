@@ -530,7 +530,7 @@ function App() {
         <CrearSolicitud onChangeView={setCurrentView} onCreateSolicitud={handleCreateSolicitud} onLogout={handleLogout} user={user} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
       )}
       {currentView === 'mis' && (
-        <MisSolicitudes mySolicitudes={mySolicitudes} onChangeView={setCurrentView} onLogout={handleLogout} user={user} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
+        <MisSolicitudes mySolicitudes={mySolicitudes} onChangeView={setCurrentView} onLogout={handleLogout} user={user} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} onRecargarSolicitudes={fetchMySolicitudes} />
       )}
       {currentView === 'trabajos' && (
         <MisTrabajos trabajos={trabajos} user={user} onChangeView={setCurrentView} onLogout={handleLogout} onAbrirChat={handleAbrirChat} currentView={currentView} showToast={showToast} mensajesNoLeidos={mensajesNoLeidos} />
