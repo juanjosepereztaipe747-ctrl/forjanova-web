@@ -6,7 +6,7 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
   const [view, setView] = useState(vistaInicial);
   const [formData, setFormData] = useState({
     email: '', password: '', nombre: '', confirmar: '',
-    rol: 'cliente', especialidad: '', ciudad: '', telefono: '',
+    rol: 'cliente', especialidad: '', ciudad: '', telefono: '', bio: '',
   });
   const [mensaje, setMensaje] = useState('');
   const [loadingReg, setLoadingReg] = useState(false);
@@ -58,6 +58,13 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
       setMensaje('La especialidad es obligatoria para técnicos');
       return;
     }
+    // La presentación se pide acá y no "más tarde", porque más tarde no pasa: de
+    // los primeros 15 técnicos, 12 nunca escribieron una línea. Es lo único que
+    // tiene para que lo elijan mientras no tenga ni fotos ni reseñas.
+    if (ejerceDeTecnico && formData.bio.trim().length < 20) {
+      setMensaje('Contanos en una línea qué hacés: es lo que ven los clientes');
+      return;
+    }
 
     setLoadingReg(true);
     try {
@@ -74,6 +81,7 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
 
       if (ejerceDeTecnico) {
         body.especialidad = formData.especialidad;
+        body.bio = formData.bio.trim();
         const { lat, lng } = await obtenerUbicacion();
         if (lat && lng) { setUbicacionTecnico({ lat, lng }); }
       }
@@ -121,6 +129,7 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
           especialidad: formData.especialidad || null,
           ciudad: formData.ciudad || null,
           telefono: formData.telefono || null,
+          bio: formData.bio.trim() || null,
           lat: ubicacionTecnico.lat,
           lng: ubicacionTecnico.lng,
         }),
@@ -142,7 +151,7 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
           setMensaje('Demasiados intentos. Vuelve a registrarte.');
           setTimeout(() => {
             setView('registro');
-            setFormData({ email: '', password: '', nombre: '', confirmar: '', rol: 'cliente', especialidad: '', ciudad: '', telefono: '' });
+            setFormData({ email: '', password: '', nombre: '', confirmar: '', rol: 'cliente', especialidad: '', ciudad: '', telefono: '', bio: '' });
             setEmailVerification({ codigo: '', email: '', intentos: 0 });
           }, 3000);
         }
@@ -291,6 +300,12 @@ function Login({ onLogin, loading, vistaInicial = 'login' }) {
 
                 <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '2px', marginTop: '8px' }}>Ciudad</label>
                 <input name="ciudad" type="text" placeholder="Ej: Huancayo" value={formData.ciudad} onChange={handleChange} style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+
+                <label style={{ color: '#aaa', fontSize: '13px', marginBottom: '2px', marginTop: '8px' }}>Contanos qué hacés *</label>
+                <textarea name="bio" rows={3} placeholder="Ej: Soy maestro de hornos artesanales y parrillas, con 10 años de experiencia." value={formData.bio} onChange={handleChange} style={{ background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '12px 14px', color: '#fff', fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                <p style={{ color: '#666', fontSize: '12px', margin: '2px 0 0 0' }}>
+                  Es lo primero que lee un cliente de vos. Podés cambiarlo cuando quieras desde tu perfil.
+                </p>
               </>
             )}
 
