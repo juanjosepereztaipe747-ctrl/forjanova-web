@@ -3,7 +3,18 @@ import { useState } from 'react';
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const WHATSAPP_NUM = '51929336337';
 
-function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast, currentView, mensajesNoLeidos = 0 }) {
+// Los mismos valores que valida el backend. La lista sirve para leer la
+// tendencia; "otro" pide el texto porque si no se vuelve el cajón de sastre
+// donde termina el 80% y no dice nada.
+const MOTIVOS_CANCELACION = [
+  { valor: 'ya_no_lo_necesito', texto: 'Ya no lo necesito' },
+  { valor: 'consegui_otro_tecnico', texto: 'Conseguí otro técnico' },
+  { valor: 'precio_alto', texto: 'El precio es muy alto' },
+  { valor: 'el_tecnico_no_respondio', texto: 'El técnico no respondió' },
+  { valor: 'otro', texto: 'Otro motivo' },
+];
+
+function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirChat, showToast, currentView, mensajesNoLeidos = 0, onRecargarSolicitudes }) {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState(null);
   const [cotizaciones, setCotizaciones] = useState([]);
   const [loadingCotizaciones, setLoadingCotizaciones] = useState(false);
@@ -16,6 +27,11 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
   const [fotoPreview, setFotoPreview] = useState(null);
   const [enviandoCalif, setEnviandoCalif] = useState(false);
   const [califEnviada, setCalifEnviada] = useState({});
+
+  const [modalCancelar, setModalCancelar] = useState(null);
+  const [motivo, setMotivo] = useState('');
+  const [detalle, setDetalle] = useState('');
+  const [cancelando, setCancelando] = useState(false);
 
   const authToken = localStorage.getItem('token');
 
@@ -108,7 +124,6 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           solicitud_id: modalCalif.solicitud.id,
-          tecnico_id: modalCalif.tecnico_id,
           estrellas,
           comentario: comentario.trim() || null,
           foto_url,
@@ -131,7 +146,41 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
     if (estado === 'abierta') return { bg: '#1a3a1a', color: '#4caf50' };
     if (estado === 'aceptada') return { bg: '#2a1a0a', color: '#ff6b1a' };
     if (estado === 'completada') return { bg: '#1a1a3a', color: '#7c7cff' };
+    if (estado === 'cancelada') return { bg: '#2a1414', color: '#e57373' };
     return { bg: '#1a1a2a', color: '#888' };
+  };
+
+  const abrirModalCancelar = (sol) => {
+    setModalCancelar(sol);
+    setMotivo('');
+    setDetalle('');
+  };
+
+  const confirmarCancelacion = async () => {
+    if (!motivo) { showToast('Elegí un motivo', 'warning'); return; }
+    if (motivo === 'otro' && detalle.trim().length < 3) {
+      showToast('Contanos brevemente por qué cancelás', 'warning');
+      return;
+    }
+
+    setCancelando(true);
+    try {
+      const res = await fetch(`${API}/solicitudes/${modalCancelar.id}/cancelar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ motivo, detalle: detalle.trim() || null }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+
+      setModalCancelar(null);
+      if (solicitudSeleccionada?.id === modalCancelar.id) setSolicitudSeleccionada(null);
+      if (onRecargarSolicitudes) await onRecargarSolicitudes();
+      showToast('Solicitud cancelada', 'success');
+    } catch (err) {
+      showToast('No se pudo cancelar: ' + err.message, 'error');
+    }
+    setCancelando(false);
   };
 
   async function aceptarCotizacion(cot) {
@@ -161,6 +210,55 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
 
   return (
     <div style={styles.bg}>
+
+      {modalCancelar && (
+        <div style={styles.overlay} onClick={() => !cancelando && setModalCancelar(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div>
+                <h3 style={styles.modalTitle}>Cancelar solicitud</h3>
+                <p style={styles.modalSub}>{modalCancelar.titulo || modalCancelar.descripcion?.slice(0, 40)}</p>
+              </div>
+              <button style={styles.closeBtn} onClick={() => setModalCancelar(null)} aria-label="Cerrar">✕</button>
+            </div>
+            <div style={styles.modalBody}>
+              {/* Si ya hay técnico elegido, decirlo antes y no después: cancelar
+                  deja de ser borrar un aviso y pasa a ser dejar plantado a
+                  alguien que ya reservó el día. */}
+              {modalCancelar.estado === 'aceptada' && (
+                <div style={styles.avisoTecnico}>
+                  Ya elegiste un técnico para este trabajo. Si cancelás, se le avisa y el trabajo se cierra.
+                </div>
+              )}
+              <p style={styles.motivoLabel}>¿Por qué cancelás?</p>
+              {MOTIVOS_CANCELACION.map((m) => (
+                <button
+                  key={m.valor}
+                  type="button"
+                  onClick={() => setMotivo(m.valor)}
+                  style={{ ...styles.motivoBtn, ...(motivo === m.valor ? styles.motivoBtnActivo : {}) }}
+                >
+                  {m.texto}
+                </button>
+              ))}
+              <textarea
+                style={styles.textarea}
+                rows={3}
+                placeholder={motivo === 'otro' ? 'Contanos qué pasó (obligatorio)' : 'Querés agregar algo? (opcional)'}
+                value={detalle}
+                onChange={(e) => setDetalle(e.target.value)}
+                maxLength={500}
+              />
+              <button style={styles.confirmarCancelBtn} onClick={confirmarCancelacion} disabled={cancelando}>
+                {cancelando ? 'Cancelando...' : 'Confirmar cancelación'}
+              </button>
+              <button style={styles.volverBtn} onClick={() => setModalCancelar(null)} disabled={cancelando}>
+                Volver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalCalif && (
         <div style={styles.overlay} onClick={() => setModalCalif(null)}>
@@ -364,6 +462,14 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
                         ? <div style={styles.califOkBadge}>✓ Ya calificaste este trabajo</div>
                         : <button style={styles.califBtn} onClick={() => abrirModalCalif(sol)}>⭐ Calificar trabajo</button>
                     )}
+                    {(sol.estado === 'abierta' || sol.estado === 'aceptada') && (
+                      <button style={styles.cancelarSolBtn} onClick={() => abrirModalCancelar(sol)}>Cancelar solicitud</button>
+                    )}
+                    {sol.estado === 'cancelada' && sol.motivo_cancelacion && (
+                      <div style={styles.motivoBadge}>
+                        Cancelada: {MOTIVOS_CANCELACION.find((m) => m.valor === sol.motivo_cancelacion)?.texto || sol.motivo_cancelacion}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -431,6 +537,14 @@ const styles = {
   whatsappBtn: { display: 'block', width: '100%', boxSizing: 'border-box', textAlign: 'center', background: '#25D366', color: '#0E0B0A', textDecoration: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600' },
   califBtn: { width: '100%', background: '#1a1a3a', border: '1px solid #7c7cff', color: '#7c7cff', borderRadius: '8px', padding: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
   califOkBadge: { width: '100%', background: '#1a2a1a', border: '1px solid #4caf50', color: '#4caf50', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', textAlign: 'center' },
+  avisoTecnico: { background: '#2a1a0a', border: '1px solid #ff6b1a', color: '#ffb27a', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', lineHeight: '1.5' },
+  motivoLabel: { fontSize: '14px', color: '#fff', fontWeight: '600', margin: '0 0 4px 0' },
+  motivoBtn: { width: '100%', textAlign: 'left', background: '#111', border: '1px solid #2a2a2a', color: '#888', borderRadius: '8px', padding: '12px', fontSize: '14px', cursor: 'pointer' },
+  motivoBtnActivo: { border: '1px solid #ff6b1a', color: '#ff6b1a', background: '#1f1510' },
+  confirmarCancelBtn: { width: '100%', background: '#c62828', border: 'none', color: '#fff', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+  volverBtn: { width: '100%', background: 'transparent', border: '1px solid #333', color: '#888', borderRadius: '8px', padding: '10px', fontSize: '14px', cursor: 'pointer' },
+  cancelarSolBtn: { width: '100%', background: 'transparent', border: '1px solid #4a2a2a', color: '#a06a6a', borderRadius: '8px', padding: '10px', fontSize: '13px', cursor: 'pointer' },
+  motivoBadge: { width: '100%', background: '#2a1414', border: '1px solid #4a2a2a', color: '#e57373', borderRadius: '8px', padding: '10px', fontSize: '13px', textAlign: 'center', boxSizing: 'border-box' },
   textarea: { width: '100%', background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', color: '#fff', padding: '10px', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box', fontFamily: "'Segoe UI', sans-serif" },
   fotoLabel: { display: 'flex', width: '100%', minHeight: '80px', background: '#111', border: '1px dashed #333', borderRadius: '8px', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', overflow: 'hidden' },
   empty: { textAlign: 'center', padding: '60px 20px' },
