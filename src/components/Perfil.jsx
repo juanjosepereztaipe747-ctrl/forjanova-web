@@ -15,7 +15,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [actualizandoUbicacion, setActualizandoUbicacion] = useState(false);
   const [msg, setMsg] = useState('');
-  const [form, setForm] = useState({ nombre: '', ciudad: '', especialidad: '', telefono: '', bio: '' });
+  const [form, setForm] = useState({ nombre: '', ciudad: '', especialidad: '', telefono: '', bio: '', servicios: '', descripcion_perfil: '' });
   const [pushEstado, setPushEstado] = useState('inactivo');
   const [pushCargando, setPushCargando] = useState(false);
   const [pushMsg, setPushMsg] = useState('');
@@ -63,7 +63,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
       const data = await res.json();
       if (data.success) {
         setPerfil(data.data);
-        setForm({ nombre: data.data.nombre || '', ciudad: data.data.ciudad || '', especialidad: data.data.especialidad || '', telefono: data.data.telefono || '', bio: data.data.bio || '' });
+        setForm({ nombre: data.data.nombre || '', ciudad: data.data.ciudad || '', especialidad: data.data.especialidad || '', telefono: data.data.telefono || '', bio: data.data.bio || '', servicios: data.data.servicios || '', descripcion_perfil: data.data.descripcion_perfil || '' });
         // El perfil recién traído es la versión buena: se propaga para que el
         // resto de la app no siga con la copia vieja del login.
         onUserUpdate?.(data.data);
@@ -384,10 +384,30 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
                 {editando ? <input style={s.input} value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.telefono || '—'}</p>}
               </div>
             </>}
+            {/* Estos tres textos son lo unico que un cliente tiene para saber
+                con quien esta hablando antes de que existan fotos o resenas. La
+                etiqueta dice donde se ven: pedir texto sin decir para que sirve
+                es la razon por la que 12 de 15 tecnicos tenian el perfil vacio. */}
             <div style={{ ...s.fieldWrap, gridColumn: '1 / -1' }}>
-              <label style={s.label}>Bio</label>
-              {editando ? <textarea style={{ ...s.input, height: '80px', resize: 'vertical' }} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} /> : <p style={s.fieldVal}>{perfil?.bio || '—'}</p>}
+              <label style={s.label}>Bio {esTecnico && <span style={s.labelAyuda}>— la ven los clientes en tu perfil</span>}</label>
+              {editando
+                ? <textarea style={{ ...s.input, height: '80px', resize: 'vertical' }} placeholder="Ej: Soy técnico metalúrgico con 8 años de experiencia..." value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} />
+                : <p style={s.fieldVal}>{perfil?.bio || '—'}</p>}
             </div>
+            {esTecnico && <>
+              <div style={{ ...s.fieldWrap, gridColumn: '1 / -1' }}>
+                <label style={s.label}>Servicios que ofrecés <span style={s.labelAyuda}>— la ven los clientes en tu perfil</span></label>
+                {editando
+                  ? <textarea style={{ ...s.input, height: '80px', resize: 'vertical' }} placeholder="Ej: Fabricación de hornos artesanales, soldadura..." value={form.servicios} onChange={e => setForm(p => ({ ...p, servicios: e.target.value }))} />
+                  : <p style={s.fieldVal}>{perfil?.servicios || '—'}</p>}
+              </div>
+              <div style={{ ...s.fieldWrap, gridColumn: '1 / -1' }}>
+                <label style={s.label}>Descripción corta <span style={s.labelAyuda}>— aparece en tu tarjeta del buscador</span></label>
+                {editando
+                  ? <input style={s.input} maxLength={90} placeholder="Ej: Especialista en hornos y metalurgia" value={form.descripcion_perfil} onChange={e => setForm(p => ({ ...p, descripcion_perfil: e.target.value }))} />
+                  : <p style={s.fieldVal}>{perfil?.descripcion_perfil || '—'}</p>}
+              </div>
+            </>}
           </div>
         </div>
 
@@ -428,6 +448,7 @@ const s = {
   fieldsGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' },
   fieldWrap: {},
   label: { fontSize: '11px', color: '#555', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  labelAyuda: { color: '#666', fontWeight: '400', fontSize: '11px' },
   fieldVal: { fontSize: '14px', color: '#ccc', margin: 0, padding: '8px 0', borderBottom: '1px solid #2a2a2a' },
   input: { width: '100%', background: '#111', border: '1px solid #333', color: '#fff', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' },
   // Estados
