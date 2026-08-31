@@ -178,7 +178,26 @@ function ModalTecnico({ tecnico, onClose }) {
 
           {tecnico.descripcion_perfil && <p style={styles.tecnicoDescModal}>{tecnico.descripcion_perfil}</p>}
 
-          <h4 style={styles.portafolioTitle}>📸 Portafolio</h4>
+          {/* `bio` y `servicios` se le piden al técnico en su perfil y no se
+              mostraban en ningún lado: escribía su presentación y sus servicios
+              para nadie. Son lo único que un cliente tiene para saber con quién
+              está hablando antes de que existan fotos o reseñas, o sea justo lo
+              que necesita el técnico que recién arranca. */}
+          {tecnico.bio && (
+            <>
+              <h4 style={styles.portafolioTitle}>👋 Sobre mí</h4>
+              <p style={styles.tecnicoTextoModal}>{tecnico.bio}</p>
+            </>
+          )}
+
+          {tecnico.servicios && (
+            <>
+              <h4 style={{ ...styles.portafolioTitle, marginTop: '20px' }}>🔧 Servicios que ofrece</h4>
+              <p style={styles.tecnicoTextoModal}>{tecnico.servicios}</p>
+            </>
+          )}
+
+          <h4 style={{ ...styles.portafolioTitle, marginTop: '20px' }}>📸 Portafolio</h4>
           {fotos.length > 0 ? (
             <div style={styles.fotosGridModal}>
               {fotos.map((foto) => (
@@ -656,6 +675,7 @@ const styles = {
   tecnicoEspModal: { fontSize: '14px', color: '#888', margin: '0 0 2px 0' },
   tecnicoCiudadModal: { fontSize: '13px', color: '#555', margin: 0 },
   tecnicoDescModal: { fontSize: '14px', color: '#aaa', lineHeight: '1.6', margin: 0 },
+  tecnicoTextoModal: { fontSize: '14px', color: '#aaa', lineHeight: '1.6', margin: '0', whiteSpace: 'pre-wrap' },
   portafolioTitle: { fontSize: '16px', fontWeight: '600', color: '#fff', margin: '0 0 12px 0' },
   fotosGridModal: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' },
   fotoCardModal: { background: '#111', borderRadius: '8px', overflow: 'hidden', border: '1px solid #2a2a2a' },
