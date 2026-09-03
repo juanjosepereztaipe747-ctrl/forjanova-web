@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient';
+import { subirArchivo } from '../api/uploads';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
@@ -30,59 +30,62 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     if (user) {
       cargarFotos();
       cargarPerfil();
-      cargarStats();
     }
   }, [user]);
 
-  const cargarStats = async () => {
-    const { data } = await supabase
-      .from('calificaciones')
-      .select('estrellas')
-      .eq('tecnico_id', user.id);
-
-    const { data: userData } = await supabase
-      .from('usuarios')
-      .select('trabajos_completados')
-      .eq('id', user.id)
-      .single();
-
-    if (data && data.length > 0) {
-      const promedio = (data.reduce((acc, c) => acc + c.estrellas, 0) / data.length).toFixed(1);
-      setStats({
-        calificaciones: data.length,
-        promedio: parseFloat(promedio),
-        trabajosCompletados: userData?.trabajos_completados || 0,
-      });
-    } else {
-      setStats({ calificaciones: 0, promedio: 0, trabajosCompletados: userData?.trabajos_completados || 0 });
-    }
-  };
-
+  // Perfil y stats salen de la misma llamada: la API ya devuelve el rating y la
+  // cantidad de reseñas calculados. Antes se traían todas las calificaciones del
+  // técnico para promediarlas acá.
   const cargarPerfil = async () => {
-    const { data } = await supabase
-      .from('usuarios')
-      .select('bio, servicios, descripcion_perfil, foto_perfil')
-      .eq('id', user.id)
-      .single();
-    if (data) {
-      setPerfil({ bio: data.bio || '', servicios: data.servicios || '', descripcion_perfil: data.descripcion_perfil || '' });
+    try {
+      const authToken = localStorage.getItem('token');
+      const res = await fetch(`${API}/perfil/me`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const { success, data } = await res.json();
+      if (!success || !data) return;
+
+      setPerfil({
+        bio: data.bio || '',
+        servicios: data.servicios || '',
+        descripcion_perfil: data.descripcion_perfil || '',
+      });
       if (data.foto_perfil) setFotoPerfil(data.foto_perfil);
+      setStats({
+        calificaciones: data.total_calificaciones || 0,
+        promedio: data.rating || 0,
+        trabajosCompletados: data.trabajos_completados || 0,
+      });
+    } catch (err) {
+      console.error('Error cargando perfil:', err);
     }
   };
 
+  // El update directo sobre `usuarios` quedó sin política al cerrar RLS, así que
+  // guardar el perfil desde acá venía fallando en silencio.
   const guardarPerfil = async () => {
     setGuardandoPerfil(true);
-    const { error } = await supabase
-      .from('usuarios')
-      .update({ bio: perfil.bio, servicios: perfil.servicios, descripcion_perfil: perfil.descripcion_perfil })
-      .eq('id', user.id);
-    setGuardandoPerfil(false);
-    if (!error) {
+    try {
+      const authToken = localStorage.getItem('token');
+      const res = await fetch(`${API}/perfil/me`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          bio: perfil.bio,
+          servicios: perfil.servicios,
+          descripcion_perfil: perfil.descripcion_perfil,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo guardar el perfil');
+
       setPerfilGuardado(true);
       setTimeout(() => setPerfilGuardado(false), 3000);
       showToast('✅ Perfil guardado', 'success');
-    } else {
-      showToast('Error al guardar perfil', 'error');
+    } catch (err) {
+      showToast(err.message || 'Error al guardar perfil', 'error');
+    } finally {
+      setGuardandoPerfil(false);
     }
   };
 
@@ -91,19 +94,22 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     if (!archivo) return;
     setSubiendoFotoPerfil(true);
     try {
-      const ext = archivo.name.split('.').pop();
-      const nombreArchivo = `perfil_${user.id}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('perfiles')
-        .upload(nombreArchivo, archivo, { upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('perfiles').getPublicUrl(nombreArchivo);
-      const fotoUrl = urlData.publicUrl;
-      const { error: updateError } = await supabase
-        .from('usuarios')
-        .update({ foto_perfil: fotoUrl })
-        .eq('id', user.id);
-      if (updateError) throw updateError;
+      // El nombre era `perfil_<id>.<ext>` con upsert: con el bucket abierto,
+      // cualquiera podía pisar la foto de cualquiera sabiendo su id, que sale
+      // listado en /tecnicos. Ahora la ruta la arma el backend con el id del
+      // token y lleva sufijo aleatorio.
+      const fotoUrl = await subirArchivo('perfiles', archivo);
+
+      // El update directo sobre `usuarios` quedó sin política al cerrar RLS.
+      const authToken = localStorage.getItem('token');
+      const res = await fetch(`${API}/perfil/me`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ foto_perfil: fotoUrl }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo guardar la foto');
+
       setFotoPerfil(fotoUrl);
       showToast('✅ Foto actualizada', 'success');
     } catch (err) {
@@ -113,12 +119,13 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
   };
 
   const cargarFotos = async () => {
-    const { data, error } = await supabase
-      .from('fotos_trabajos')
-      .select('*')
-      .eq('tecnico_id', user.id)
-      .order('created_at', { ascending: false });
-    if (!error) setFotos(data);
+    try {
+      const res = await fetch(`${API}/tecnicos/${user.id}/fotos`);
+      const data = await res.json();
+      if (data.success) setFotos(data.data);
+    } catch (err) {
+      console.error('Error cargando fotos:', err);
+    }
   };
 
   const subirFoto = async (e) => {
@@ -126,17 +133,17 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     if (!archivo) return;
     setSubiendo(true);
     try {
-      const ext = archivo.name.split('.').pop();
-      const nombreArchivo = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('trabajos')
-        .upload(nombreArchivo, archivo);
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('trabajos').getPublicUrl(nombreArchivo);
-      const { error: insertError } = await supabase
-        .from('fotos_trabajos')
-        .insert({ tecnico_id: user.id, url: urlData.publicUrl, descripcion });
-      if (insertError) throw insertError;
+      const url = await subirArchivo('trabajos', archivo);
+
+      const authToken = localStorage.getItem('token');
+      const res = await fetch(`${API}/fotos-trabajos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url, descripcion: descripcion || null }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo guardar la foto');
+
       setDescripcion('');
       await cargarFotos();
       showToast('✅ Foto subida', 'success');
@@ -147,12 +154,23 @@ function MisTrabajos({ trabajos = [], user, onChangeView, onLogout, onAbrirChat,
     }
   };
 
+  // El borrado del archivo lo hace ahora el backend, después de comprobar que la
+  // foto es tuya. Antes lo hacía el navegador: con la política abierta,
+  // cualquiera podía borrar las fotos de cualquier técnico.
   const borrarFoto = async (foto) => {
-    const path = foto.url.split('/trabajos/')[1];
-    await supabase.storage.from('trabajos').remove([path]);
-    await supabase.from('fotos_trabajos').delete().eq('id', foto.id);
-    await cargarFotos();
-    showToast('Foto eliminada', 'warning');
+    try {
+      const authToken = localStorage.getItem('token');
+      const res = await fetch(`${API}/fotos-trabajos/${foto.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'No se pudo borrar la foto');
+      await cargarFotos();
+      showToast('Foto eliminada', 'warning');
+    } catch (err) {
+      showToast(err.message || 'Error al borrar la foto', 'error');
+    }
   };
 
   const marcarTerminado = async (trabajo) => {

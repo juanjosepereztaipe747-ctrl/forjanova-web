@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../supabaseClient';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
@@ -50,12 +49,14 @@ function Landing({ onEntrar }) {
 
   useEffect(() => {
     const cargarTrabajos = async () => {
-      const { data } = await supabase
-        .from('fotos_trabajos')
-        .select('*, usuarios(nombre, especialidad, ciudad)')
-        .order('created_at', { ascending: false })
-        .limit(9);
-      if (data) setTrabajosReales(data);
+      try {
+        const res = await fetch(`${API}/fotos-trabajos/recientes`);
+        const json = await res.json();
+        if (json.success) setTrabajosReales(json.data);
+      } catch {
+        // silencioso, igual que las solicitudes recientes: la landing se ve
+        // entera sin esta galería.
+      }
     };
     cargarTrabajos();
   }, []);
