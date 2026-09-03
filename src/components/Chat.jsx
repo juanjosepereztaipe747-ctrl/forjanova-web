@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient';
+import { subirArchivo as subirAStorage } from '../api/uploads';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
-
-const EXTENSIONES_MIME = {
-  'audio/webm': 'webm',
-  'audio/ogg': 'ogg',
-  'audio/mp4': 'm4a',
-  'audio/mpeg': 'mp3',
-  'audio/wav': 'wav',
-};
 
 function Chat({ conversacion, user, onBack, showToast }) {
   const [mensajes, setMensajes] = useState([]);
@@ -44,17 +36,9 @@ function Chat({ conversacion, user, onBack, showToast }) {
     }
   };
 
-  const subirArchivo = async (file, prefijo) => {
-    const ext = EXTENSIONES_MIME[file.type] || (file.type.split('/')[1] || 'bin');
-    const nombreArchivo = `${prefijo}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage.from('chat-adjuntos').upload(nombreArchivo, file, {
-      upsert: true,
-      contentType: file.type || 'application/octet-stream',
-    });
-    if (error) throw error;
-    const { data } = supabase.storage.from('chat-adjuntos').getPublicUrl(nombreArchivo);
-    return data.publicUrl;
-  };
+  // El nombre del archivo lo arma el backend con el id del usuario; acá ya no
+  // hace falta inventar uno, y el `prefijo` dejó de tener sentido.
+  const subirArchivo = (file) => subirAStorage('chat-adjuntos', file);
 
   const enviarMensaje = async () => {
     if (!texto.trim() && !fotoFile && !audioBlob) return;
@@ -64,10 +48,10 @@ function Chat({ conversacion, user, onBack, showToast }) {
       let body = { texto: texto.trim() || null, tipo: 'texto' };
 
       if (fotoFile) {
-        const url = await subirArchivo(fotoFile, 'foto');
+        const url = await subirArchivo(fotoFile);
         body = { texto: texto.trim() || null, tipo: 'imagen', archivo_url: url };
       } else if (audioBlob) {
-        const url = await subirArchivo(audioBlob, 'audio');
+        const url = await subirArchivo(audioBlob);
         body = { texto: null, tipo: 'audio', archivo_url: url };
       }
 

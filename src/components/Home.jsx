@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import Mapa from './Mapa';
-import { supabase } from '../supabaseClient';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
@@ -133,12 +132,20 @@ function ModalTecnico({ tecnico, onClose }) {
 
   useEffect(() => {
     const cargar = async () => {
-      const [{ data: fotosData }, { data: califData }] = await Promise.all([
-        supabase.from('fotos_trabajos').select('*').eq('tecnico_id', tecnico.id).order('created_at', { ascending: false }),
-        supabase.from('calificaciones').select('*, usuarios!calificaciones_cliente_id_fkey(id, nombre)').eq('tecnico_id', tecnico.id).order('created_at', { ascending: false }),
-      ]);
-      if (fotosData) setFotos(fotosData);
-      if (califData) setCalificaciones(califData);
+      // Las dos salen de la API: la tabla de fotos deja de leerse directo para
+      // poder cerrarle también el SELECT, y las reseñas ya venían paginadas.
+      try {
+        const [resFotos, resCalif] = await Promise.all([
+          fetch(`${API}/tecnicos/${tecnico.id}/fotos`),
+          fetch(`${API}/tecnicos/${tecnico.id}/calificaciones`),
+        ]);
+        const fotosJson = await resFotos.json();
+        const califJson = await resCalif.json();
+        if (fotosJson.success) setFotos(fotosJson.data);
+        if (califJson.success) setCalificaciones(califJson.data);
+      } catch (err) {
+        console.error('Error cargando la ficha del técnico:', err);
+      }
     };
     cargar();
   }, [tecnico.id]);
