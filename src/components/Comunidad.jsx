@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { subirArchivo } from '../api/uploads';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 
@@ -68,11 +68,10 @@ function ModalPublicar({ onClose, onPublicado, showToast }) {
   const subirFotos = async () => {
     const urls = [];
     for (const file of fotosFiles) {
-      const nombreArchivo = `publicacion_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const { error } = await supabase.storage.from('publicaciones').upload(nombreArchivo, file, { upsert: true });
-      if (!error) {
-        const { data } = supabase.storage.from('publicaciones').getPublicUrl(nombreArchivo);
-        urls.push(data.publicUrl);
+      try {
+        urls.push(await subirArchivo('publicaciones', file));
+      } catch (err) {
+        console.error('No se pudo subir una foto de la publicación:', err);
       }
     }
     return urls;

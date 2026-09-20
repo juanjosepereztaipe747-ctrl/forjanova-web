@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { subirArchivo } from '../api/uploads';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
@@ -80,11 +80,12 @@ function CrearSolicitud({ onChangeView, onCreateSolicitud, onLogout, user, mensa
   const subirFotos = async () => {
     const urls = [];
     for (const file of fotosFiles) {
-      const nombreArchivo = `solicitud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const { error } = await supabase.storage.from('solicitudes').upload(nombreArchivo, file, { upsert: true });
-      if (!error) {
-        const { data } = supabase.storage.from('solicitudes').getPublicUrl(nombreArchivo);
-        urls.push(data.publicUrl);
+      try {
+        urls.push(await subirArchivo('solicitudes', file));
+      } catch (err) {
+        // Se sigue con las demás, como antes: una foto que no entra no tiene
+        // que costarle al cliente la solicitud entera.
+        console.error('No se pudo subir una foto de la solicitud:', err);
       }
     }
     return urls;

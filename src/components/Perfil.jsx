@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../supabaseClient';
 import { estadoPush, activarPush, desactivarPush } from '../push';
 import { getToken } from '../api/client';
+import { subirArchivo } from '../api/uploads';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
-const SUPABASE_URL = 'https://alvgcnfkhmvrzehpwyjq.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_0iOSNTdAxM653Cm6Pn4Iyw_GfCdX6cP';
 
 function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos = 0 }) {
   const [perfil, setPerfil] = useState(null);
@@ -77,36 +75,31 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   };
 
   const cargarEstados = async () => {
-    const { data } = await supabase
-      .from('estados_tecnico')
-      .select('*')
-      .eq('tecnico_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (data) setEstados(data);
+    try {
+      const res = await fetch(`${API}/tecnicos/${user.id}/estados?limit=10`);
+      const { success, data } = await res.json();
+      if (success) setEstados(data);
+    } catch (err) {
+      console.error('Error cargando estados:', err);
+    }
   };
 
   const publicarEstado = async () => {
     if (!nuevoEstado.trim()) return;
     setPublicando(true);
     try {
+      // La subida iba por un POST a Storage escrito a mano, con la clave
+      // publishable en el header: la firma la da el backend.
       let fotoUrl = null;
-      if (fotoEstado) {
-        const ext = fotoEstado.name.split('.').pop();
-        const filename = `estado_${user.id}_${Date.now()}.${ext}`;
-        await fetch(`${SUPABASE_URL}/storage/v1/object/trabajos/${filename}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${SUPABASE_ANON}`, 'apikey': SUPABASE_ANON, 'Content-Type': fotoEstado.type, 'x-upsert': 'true' },
-          body: fotoEstado,
-        });
-        fotoUrl = `${SUPABASE_URL}/storage/v1/object/public/trabajos/${filename}`;
-      }
-      const { error } = await supabase.from('estados_tecnico').insert({
-        tecnico_id: user.id,
-        texto: nuevoEstado,
-        foto_url: fotoUrl,
+      if (fotoEstado) fotoUrl = await subirArchivo('trabajos', fotoEstado);
+
+      const res = await fetch(`${API}/estados-tecnico`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ texto: nuevoEstado, foto_url: fotoUrl }),
       });
-      if (!error) {
+      const data = await res.json();
+      if (data.success) {
         setNuevoEstado('');
         setFotoEstado(null);
         await cargarEstados();
@@ -116,7 +109,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
   };
 
   const borrarEstado = async (id) => {
-    await supabase.from('estados_tecnico').delete().eq('id', id);
+    await fetch(`${API}/estados-tecnico/${id}`, { method: 'DELETE', headers: headers() });
     await cargarEstados();
   };
 
@@ -177,15 +170,7 @@ function Perfil({ user, onChangeView, onLogout, onUserUpdate, mensajesNoLeidos =
     if (file.size > 2 * 1024 * 1024) { setMsg('La foto no debe superar 2MB'); return; }
     setSubiendoFoto(true); setMsg('');
     try {
-      const ext = file.name.split('.').pop();
-      const filename = `perfil_${user.id}_${Date.now()}.${ext}`;
-      const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/perfiles/${filename}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${SUPABASE_ANON}`, 'apikey': SUPABASE_ANON, 'Content-Type': file.type, 'x-upsert': 'true' },
-        body: file,
-      });
-      if (!uploadRes.ok) throw new Error('Error subiendo imagen');
-      const foto_perfil = `${SUPABASE_URL}/storage/v1/object/public/perfiles/${filename}`;
+      const foto_perfil = await subirArchivo('perfiles', file);
       const res = await fetch(`${API}/perfil/me`, { method: 'PUT', headers: headers(), body: JSON.stringify({ foto_perfil }) });
       const data = await res.json();
       if (data.success) {

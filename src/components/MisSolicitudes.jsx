@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { subirArchivo } from '../api/uploads';
 
 const API = `${import.meta.env.VITE_API_URL}/api`;
 const WHATSAPP_NUM = '51929336337';
@@ -103,19 +104,13 @@ function MisSolicitudes({ mySolicitudes, onChangeView, onLogout, user, onAbrirCh
       let foto_url = null;
 
       if (fotoCalif) {
-        const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
-        const supabase = createClient(
-          'https://alvgcnfkhmvrzehpwyjq.supabase.co',
-          'sb_publishable_0iOSNTdAxM653Cm6Pn4Iyw_GfCdX6cP'
-        );
-        const nombreArchivo = `resena_${modalCalif.solicitud.id}_${Date.now()}`;
-        const { error: uploadError } = await supabase.storage
-          .from('resenas')
-          .upload(nombreArchivo, fotoCalif, { upsert: true });
-
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage.from('resenas').getPublicUrl(nombreArchivo);
-          foto_url = urlData.publicUrl;
+        // Antes esto se bajaba el SDK de un CDN en pleno envío y creaba su
+        // propio cliente con la URL y la clave escritas acá adentro. La subida
+        // va por el backend, que firma la ruta con el id del usuario.
+        try {
+          foto_url = await subirArchivo('resenas', fotoCalif);
+        } catch (err) {
+          console.error('No se pudo subir la foto de la reseña:', err);
         }
       }
 
